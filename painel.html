@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Pizzaria Condors - Painel de Pedidos</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@700;800&family=Sora:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0b0b0b; --card:#141414; --soft:#1d1d1d;
+  --text:#f5f5f5; --muted:#a9a9a9; --accent:#e53935;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;background:var(--bg);color:var(--text);
+  font-family:"Sora","Helvetica Neue",sans-serif;
+}
+.wrap{max-width:900px;margin:0 auto;padding:24px 18px 60px}
+.top{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+h1{font-family:"Fraunces",serif;font-size:26px;margin:0}
+.muted{color:var(--muted)}
+.btn{
+  appearance:none;border:0;cursor:pointer;color:#fff;
+  background:var(--accent);font-weight:700;border-radius:10px;
+  padding:10px 14px;
+}
+.btn.sec{background:rgba(255,255,255,.1);color:#f0f0f0}
+.list{display:grid;gap:12px;margin-top:16px}
+.card{
+  background:var(--card);border:1px solid rgba(255,255,255,.08);
+  border-radius:14px;padding:12px 14px;display:grid;gap:8px;
+}
+.row{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.items{display:grid;gap:6px}
+.item{display:flex;justify-content:space-between;gap:10px}
+.tag{display:inline-flex;gap:6px;align-items:center;font-size:12px;background:var(--soft);padding:4px 8px;border-radius:999px}
+.actions{display:flex;gap:10px;flex-wrap:wrap}
+.filter{
+  background:var(--soft);color:var(--text);
+  border:1px solid rgba(255,255,255,.12);
+  padding:8px 10px;border-radius:10px;font-size:14px;
+}
+.empty{
+  padding:16px;border:1px dashed rgba(255,255,255,.2);
+  border-radius:12px;text-align:center;color:var(--muted)
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <h1>Pedidos</h1>
+      <div id="status" class="muted">Aguardando configuração do Sheets.</div>
+    </div>
+    <div class="actions">
+      <label class="muted" for="filter-status">Mostrar:</label>
+      <select id="filter-status" class="filter">
+        <option value="PENDENTE" selected>Pendentes</option>
+        <option value="TODOS">Todos</option>
+        <option value="IMPRESSO">Impressos</option>
+      </select>
+      <button id="btn-refresh" class="btn sec" type="button">Atualizar</button>
+    </div>
+  </div>
+
+  <div id="orders" class="list"></div>
+</div>
+
+<script>
+const SHEETS_WEBAPP_URL = '/.netlify/functions/sheets-get';
+const BRL = v => Number(v || 0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const ordersEl=document.getElementById('orders');
+const statusEl=document.getElementById('status');
+const filterSelect=document.getElementById('filter-status');
+let CURRENT_ORDERS=[];
+let CURRENT_FILTER='PENDENTE';
+
+function fmtDate(value){
+  if(!value) return '';
+  const d=new Date(value);
+  if(Number.isNaN(d.getTime())) return value;
+  return d.toLocaleString('pt-BR');
+}
+
+function buildAddress(o){
+  const a=o.address || {};
+  const parts=[];
+  if(a.rua) parts.push(a.rua);
+  if(a.num) parts.push(a.num);
+  if(a.comp) parts.push(a.comp);
+  const line1=parts.join(', ');
+  const line2=[a.bairro,a.cidade,a.cep].filter(Boolean).join(' - ');
+  return [line1,line2].filter(Boolean).join(' | ');
+}
+
+function normalizeStatus(order){
+  const raw = (order && order.status) ? String(order.status) : '';
+  const upper = raw.toUpperCase();
+  if(upper === 'IMPRESSO') return 'IMPRESSO';
+  if(upper === 'PENDENTE') return 'PENDENTE';
+  if(order && (order.impresso_em || order.impresso)) return 'IMPRESSO';
+  return 'PENDENTE';
+}
+
+function applyFilter(list){
+  if(CURRENT_FILTER === 'TODOS') return list;
+  return list.filter(o=>normalizeStatus(o) === CURRENT_FILTER);
+}
+
+function renderOrders(list){
+  CURRENT_ORDERS=list || [];
+  ordersEl.innerHTML='';
+  const visible = applyFilter(CURRENT_ORDERS);
+  if(!visible.length){
+    ordersEl.innerHTML='<div class="empty">Nenhum pedido encontrado.</div>';
+    return;
+  }
+  visible.forEach(order=>{
+    const card=document.createElement('div');
+    card.className='card';
+    const customer=order.customer || {};
+    const totals=order.totals || {};
+    const items=order.items || [];
+    const orderId = order.id || 'Pedido';
+    const status = normalizeStatus(order);
+    card.innerHTML=`
+      <div class="row">
+        <strong>Pedido: ${orderId}</strong>
+        <span class="tag">${status}</span>
+      </div>
+      <div class="row">
+        <span class="muted">${fmtDate(order.createdAt)}</span>
+        <span class="muted">${customer.tel || ''}</span>
+      </div>
+      <div class="row">
+        <span>${customer.nome || 'Cliente'}</span>
+      </div>
+      <div class="muted">${buildAddress(order)}</div>
+      <div class="items">
+        ${items.map(it=>`<div class="item"><span>${it.nome}${it.det?`<div class="muted">${it.det}</div>`:''}</span><strong>${BRL(it.preco)}</strong></div>`).join('')}
+      </div>
+      <div class="row">
+        <span>Subtotal</span><strong>${BRL(totals.subtotal)}</strong>
+      </div>
+      <div class="row">
+        <span>Taxa</span><strong>${BRL(totals.taxa)}</strong>
+      </div>
+      <div class="row">
+        <span>Desconto</span><strong>${BRL(totals.desconto)}</strong>
+      </div>
+      <div class="row">
+        <span>Total</span><strong>${BRL(totals.total)}</strong>
+      </div>
+      <div class="actions">
+        <button class="btn" data-print="${order.id}">Imprimir</button>
+      </div>
+    `;
+    ordersEl.appendChild(card);
+  });
+}
+
+function printOrder(order){
+  const customer=order.customer || {};
+  const address=buildAddress(order);
+  const items=order.items || [];
+  const totals=order.totals || {};
+  const w=window.open('', '_blank', 'width=420,height=700');
+  if(!w) return;
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8">
+  <title>Pedido</title>
+  <style>
+    @page{size:80mm auto;margin:6mm;}
+    @media print{body{width:80mm;}}
+    body{font-family:monospace;color:#000;width:80mm;}
+    h1{font-size:16px;margin:0 0 6px;}
+    .muted{color:#444;}
+    .row{display:flex;justify-content:space-between;gap:8px;}
+    .items{margin:8px 0;}
+    .item{display:flex;justify-content:space-between;gap:8px;}
+    .sep{border-top:1px dashed #000;margin:8px 0;}
+  </style></head><body>
+  <h1>Pizzaria Condors</h1>
+  <div><strong>Cupom de Pedido</strong></div>
+  <div>Pedido: ${order.id || ''}</div>
+  <div>${fmtDate(order.createdAt)}</div>
+  <div class="muted">${customer.nome || ''} ${customer.tel ? '- '+customer.tel : ''}</div>
+  <div class="muted">${address}</div>
+  <div class="sep"></div>
+  <div class="items">
+    ${items.map(it=>`<div class="item"><span>${it.nome}${it.det?`<div class="muted">${it.det}</div>`:''}</span><span>${BRL(it.preco)}</span></div>`).join('')}
+  </div>
+  <div class="sep"></div>
+  <div class="row"><span>Subtotal</span><span>${BRL(totals.subtotal)}</span></div>
+  <div class="row"><span>Taxa</span><span>${BRL(totals.taxa)}</span></div>
+  <div class="row"><span>Desconto</span><span>${BRL(totals.desconto)}</span></div>
+  <div class="row"><strong>Total</strong><strong>${BRL(totals.total)}</strong></div>
+  </body></html>`);
+  w.document.close();
+  w.focus();
+  w.print();
+  w.onafterprint=()=>w.close();
+}
+
+async function markPrinted(orderId){
+  if(!orderId) return;
+  try{
+    await fetch('/.netlify/functions/sheets-mark-printed', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ id: orderId })
+    });
+  }catch{
+    // falha silenciosa
+  }
+}
+
+async function fetchOrders(){
+  if(!SHEETS_WEBAPP_URL){
+    statusEl.textContent='URL do Sheets não configurada.';
+    renderOrders([]);
+    return;
+  }
+  statusEl.textContent='Carregando...';
+  try{
+    const r=await fetch(SHEETS_WEBAPP_URL, {cache:'no-store'});
+    const data=await r.json();
+    const orders=(data.orders || []).slice().sort((a,b)=>{
+      const ta=new Date(a.createdAt || 0).getTime();
+      const tb=new Date(b.createdAt || 0).getTime();
+      return tb-ta;
+    });
+    renderOrders(orders);
+    const stamp = data.updatedAt ? new Date(data.updatedAt) : new Date();
+    const time = stamp.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    statusEl.textContent = `Última atualização: ${time}`;
+  }catch{
+    statusEl.textContent='Erro ao carregar pedidos.';
+  }
+}
+
+document.getElementById('btn-refresh').onclick=fetchOrders;
+ordersEl.addEventListener('click',ev=>{
+  const btn=ev.target.closest('[data-print]');
+  if(!btn) return;
+  const id=btn.dataset.print;
+  const order=CURRENT_ORDERS.find(o=>o.id===id);
+  if(order){
+    printOrder(order);
+    order.status = 'IMPRESSO';
+    renderOrders(CURRENT_ORDERS);
+    markPrinted(id).then(fetchOrders);
+  }
+});
+
+if(filterSelect){
+  filterSelect.addEventListener('change',()=>{
+    CURRENT_FILTER = filterSelect.value;
+    renderOrders(CURRENT_ORDERS);
+  });
+}
+
+fetchOrders();
+setInterval(fetchOrders, 120000);
+</script>
+</body>
+</html>

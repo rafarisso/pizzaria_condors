@@ -1,0 +1,1361 @@
+﻿<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Pizzaria Condors — Forno a lenha, pizza perfeita</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<!-- Favicons / App Icons -->
+<link rel="icon" type="image/png" sizes="32x32" href="images/logo.png">
+<link rel="icon" type="image/png" sizes="16x16" href="images/logo.png">
+<link rel="icon" href="images/logo.png">
+<link rel="apple-touch-icon" sizes="180x180" href="images/logo.png">
+<link rel="icon" type="image/png" sizes="192x192" href="images/logo.png">
+<link rel="icon" type="image/png" sizes="512x512" href="images/logo.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700;800&family=Sora:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --bg:#000000; --card:#101010; --soft:#171717;
+  --logo-red:#e53935; --logo-green:#2e7d32;
+  --brand:var(--logo-red); --brand2:var(--logo-green);
+  --text:#f5f5f5; --muted:#a9a9a9; --accent:var(--logo-red); --danger:#e45858;
+  --glow:rgba(229,57,53,.35);
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family:"Sora","Helvetica Neue",sans-serif;
+  overflow-x:hidden;
+}
+body::after{
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:-1;
+  background:radial-gradient(120% 120% at 50% 0%, rgba(0,0,0,.0) 35%, rgba(0,0,0,.55) 100%);
+}
+
+.scene{position:fixed;inset:0;z-index:-2;pointer-events:none}
+.scene::before{
+  content:"";position:absolute;inset:-30% -10% 0;
+  background:none;
+  filter:none;opacity:0;
+}
+.scene::after{
+  content:"";position:absolute;inset:0;
+  background:none;
+  mix-blend-mode:normal;opacity:0;
+}
+.pizza-rain{position:absolute;inset:0;width:100%;height:100%}
+
+.wrap{max-width:1080px;margin:0 auto;padding:0 18px 120px;position:relative;z-index:1}
+
+/* Hero */
+.hero{display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px;padding:0 0 10px}
+.hero-logo{
+  width:320px;height:320px;border-radius:0;
+  background:transparent;
+  border:0;
+  box-shadow:none;
+  display:grid;place-items:center;overflow:visible;position:relative;margin-top:0;
+}
+.hero-logo img{
+  width:100%;
+  height:100%;
+  object-fit:contain;
+  filter:drop-shadow(0 14px 22px rgba(0,0,0,.6));
+}
+.hero-logo .logo-mark{
+  position:absolute;font-family:"Fraunces",serif;font-weight:800;letter-spacing:2px;
+  font-size:36px;color:var(--accent);opacity:0;transition:opacity .2s ease;
+}
+.hero-logo.fallback .logo-mark{opacity:1}
+.brand-name{
+  font-family:"Fraunces",serif;font-weight:800;letter-spacing:2px;font-size:32px;text-transform:uppercase;
+  background:linear-gradient(90deg,var(--logo-red),var(--logo-green));
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.tagline{color:var(--muted);font-size:15px;max-width:640px}
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;align-items:center;margin-top:10px}
+.pill{
+  background:linear-gradient(90deg, rgba(229,57,53,.2), rgba(46,125,50,.2));
+  color:#f5f5f5;border:1px solid rgba(255,255,255,.22);
+  padding:8px 12px;border-radius:999px;font-weight:600;font-size:14px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.04);
+}
+.badge{
+  display:inline-flex;gap:8px;align-items:center;padding:10px 14px;
+  background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.12);border-radius:999px;
+  cursor:pointer;transition:.2s;text-decoration:none;color:var(--text);
+}
+.badge:hover{background:rgba(255,255,255,.08);transform:translateY(-1px)}
+
+.section-title{font-family:"Fraunces",serif;font-size:22px;margin:22px 8px 12px}
+.menu-subtitle{
+  grid-column:1/-1;
+  margin:12px 6px 6px;
+  font-family:"Fraunces",serif;
+  font-size:18px;
+  color:var(--text);
+}
+.section-note{
+  grid-column:1/-1;
+  margin:0 8px 12px;
+  color:var(--muted);
+  font-size:13px;
+}
+.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
+.card{
+  background:linear-gradient(180deg,rgba(255,255,255,.06),rgba(255,255,255,.02));
+  border:1px solid rgba(255,255,255,.08);border-radius:20px;overflow:hidden;
+  box-shadow:0 12px 36px rgba(0,0,0,.35);display:flex;flex-direction:column;
+  transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease;
+}
+.card:hover{transform:translateY(-4px);border-color:rgba(255,255,255,.18);box-shadow:0 20px 50px rgba(0,0,0,.45)}
+.card .img{position:relative;aspect-ratio:16/10;background:linear-gradient(135deg,#111111,#050505)}
+.card .img::after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.0),rgba(0,0,0,.35))}
+.card .img img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:saturate(1.05) contrast(1.02)}
+.card .body{padding:12px 14px 14px;display:flex;flex-direction:column;gap:8px}
+.photo-card .body{padding:10px 12px}
+.photo-card .body strong{display:block;text-align:center}
+.price{font-size:15px;font-weight:800}
+.muted{color:var(--muted)}
+.row-between{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.btn{
+  appearance:none;border:0;cursor:pointer;color:#ffffff;background:var(--accent);font-weight:800;
+  border-radius:999px;padding:10px 14px;transition:.2s;
+}
+.btn:hover{transform:translateY(-1px)}
+.btn.sec{background:rgba(255,255,255,.08);color:#f2f2f2;border:1px solid rgba(255,255,255,.16)}
+.btn.full{width:100%;padding:14px 18px;font-size:16px}
+.btn.add{background:linear-gradient(180deg,var(--brand2),var(--brand));color:#ffffff}
+
+/* Modal básico */
+.modal{position:fixed;inset:0;display:none;place-items:center;background:rgba(0,0,0,.6);z-index:60;padding:16px;overflow:auto}
+.modal[aria-hidden="false"]{display:grid}
+.sheet{width:min(720px,92vw);max-height:88vh;overflow:auto;background:var(--card);border:1px solid rgba(255,255,255,.1);border-radius:18px;box-shadow:0 30px 80px rgba(0,0,0,.5);padding:14px}
+.sheet .title{font-size:20px;font-weight:800;margin-bottom:12px}
+.opt{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.1);margin-bottom:8px}
+.opt input{transform:scale(1.2)}
+.opt small{color:var(--muted)}
+.sheet .footer{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:12px;flex-wrap:wrap}
+.sheet .footer .actions{display:flex;gap:10px;flex-wrap:wrap;margin-left:auto}
+
+/* Drawer carrinho */
+.cart-fab{
+  position:fixed;right:18px;bottom:18px;z-index:30;width:58px;height:58px;border-radius:100%;
+  background:linear-gradient(180deg,var(--brand2),var(--brand));color:#ffffff;display:grid;place-items:center;
+  font-size:24px;font-weight:900;border:0;cursor:pointer;box-shadow:0 12px 28px rgba(0,0,0,.5)
+}
+.cart-count{
+  position:absolute;top:-6px;right:-6px;min-width:20px;height:20px;padding:0 6px;
+  border-radius:999px;background:var(--brand);color:#ffffff;font-size:12px;font-weight:800;
+  display:grid;place-items:center;border:2px solid #000000;
+}
+.drawer{
+  position:fixed;top:0;right:0;height:100%;width:min(420px,92vw);background:var(--card);
+  border-left:1px solid rgba(255,255,255,.08);transform:translateX(100%);transition:.25s;z-index:50;
+  display:flex;flex-direction:column
+}
+.drawer.open{transform:none}
+.drawer h3{margin:14px;font-size:18px}
+.cart-list{padding:0 14px 12px;overflow:auto;flex:1;display:flex;flex-direction:column;gap:10px}
+.cart-item{border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:10px;background:rgba(255,255,255,.03)}
+.cart-foot{padding:12px 14px 18px;border-top:1px solid rgba(255,255,255,.08);background:var(--soft);display:grid;gap:10px}
+.sum{display:flex;align-items:center;justify-content:space-between}
+
+/* Checkout grid responsivo */
+.formGrid{display:grid;gap:12px}
+@media (min-width:720px){ .formGrid{grid-template-columns:1fr 1fr} .formGrid .span-2{grid-column:span 2} }
+@media (min-width:1024px){ .formGrid.multi-cols{grid-template-columns:repeat(3,1fr)} }
+.text{
+  width:100%;padding:12px 14px;border-radius:12px;border:1px solid rgba(255,255,255,.16);
+  background:var(--soft);color:var(--text);font-size:15px;outline:none;
+}
+.text::placeholder{color:#9b9b9b}
+.text:focus{border-color:rgba(229,57,53,.6);box-shadow:0 0 0 2px rgba(229,57,53,.15)}
+
+footer{margin-top:40px;text-align:center;color:var(--muted);font-size:12.5px;line-height:1.6}
+footer .footer-main{display:grid;gap:8px}
+footer .footer-address{font-weight:600;color:var(--text)}
+footer .footer-phones{display:grid;gap:4px;justify-items:center}
+footer .footer-hours{color:var(--muted)}
+footer .footer-dev{margin-top:28px;padding-top:14px;border-top:1px solid rgba(255,255,255,.08);display:grid;gap:6px}
+footer .footer-dev .dev-promo{font-weight:600;color:var(--text)}
+footer .footer-dev .dev-contact{font-weight:600;color:var(--muted)}
+.hidden{display:none!important}
+
+.reveal{opacity:0;transform:translateY(14px);filter:blur(2px)}
+.ready .reveal{animation:rise .7s ease forwards;animation-delay:var(--delay,0ms)}
+@keyframes rise{to{opacity:1;transform:translateY(0);filter:blur(0)}}
+
+@media (max-width:640px){
+  .hero-logo{width:264px;height:264px;border-radius:0}
+  .brand-name{font-size:26px}
+  .toolbar{gap:8px}
+}
+@media (prefers-reduced-motion: reduce){
+  .reveal{opacity:1;transform:none;filter:none}
+  .ready .reveal{animation:none}
+  .card:hover{transform:none}
+}
+</style>
+</head>
+<body>
+<div class="scene" aria-hidden="true">
+  <canvas id="pizza-rain" class="pizza-rain"></canvas>
+</div>
+<div class="wrap">
+  <header class="hero" id="topo">
+    <div class="hero-logo reveal" style="--delay:40ms">
+      <img src="images/logo.png" alt="Pizzaria Condors" onerror="this.remove();this.parentElement.classList.add('fallback')">
+      <span class="logo-mark">PC</span>
+    </div>
+    <div class="brand-name reveal" style="--delay:120ms">PIZZARIA CONDORS</div>
+    <div class="tagline reveal" style="--delay:200ms">Forno a lenha, massa leve, pedido simples e rápido pelo WhatsApp para deixar sua pizza ainda mais perfeita!</div>
+    <div class="toolbar reveal" style="--delay:280ms">
+      <div id="status" class="pill">Verificando horário...</div>
+      <button id="btn-half" class="badge" type="button">Pizza 2 Sabores</button>
+      <a class="badge" href="#pizzas">Pizzas</a>
+      <a class="badge" href="#pasteis">Pastéis</a>
+      <a class="badge" href="#bebidas">Bebidas</a>
+      <a class="badge" href="#fotos">Fotos</a>
+    </div>
+  </header>
+
+  <section id="pizzas">
+    <h2 class="section-title">Pizzas Artesanais</h2>
+    <div id="grid-pizzas" class="grid"></div>
+  </section>
+  <section id="pasteis">
+    <h2 class="section-title">Pastéis</h2>
+    <div class="section-note">Preços por unidade.</div>
+    <div id="grid-pasteis" class="grid"></div>
+  </section>
+
+  <section id="bebidas">
+    <h2 class="section-title">Bebidas</h2>
+    <div id="grid-bebidas" class="grid"></div>
+  </section>
+  <section id="fotos">
+    <h2 class="section-title">Fotos</h2>
+    <div id="grid-fotos" class="grid"></div>
+  </section>
+
+
+  <footer>
+    <div class="footer-main">
+      <div class="footer-address">Av. Senador Teotônio Vilela, 7220 - Jd. São Rafael - São Paulo - SP</div>
+      <div class="footer-phones">
+        <div>Tel: 5925-7359</div>
+        <div>Tel: 5927-7613</div>
+        <div>WhatsApp: (11) 99919-2139</div>
+      </div>
+      <div class="footer-hours">Atendimento: Ter-Dom 18:00-00:00 (pedidos até 23:45)</div>
+    </div>
+    <div class="footer-dev">
+      <div class="dev-promo">Quer um aplicativo como esse? Entre em contato com a RR SOLUTIONS.</div>
+      <div class="dev-contact">WhatsApp: 11 91095-0968</div>
+    </div>
+  </footer>
+</div>
+
+<button id="btn-cart" class="cart-fab" title="Abrir carrinho">🛒<span id="cart-count" class="cart-count hidden">0</span></button>
+
+<aside id="drawer" class="drawer" aria-hidden="true">
+  <h3>🧾 Seu carrinho <button id="btn-close" class="btn sec" style="float:right;padding:6px 10px">Fechar</button></h3>
+  <div id="cart-list" class="cart-list"></div>
+  <div class="cart-foot">
+    <div class="sum"><span>Subtotal</span><strong id="sub">R$ 0,00</strong></div>
+    <div class="sum"><span>Taxa de entrega</span><strong id="taxa">R$ 0,00</strong></div>
+    <div class="sum"><span>Desconto</span><strong id="desc">R$ 0,00</strong></div>
+    <div class="sum" style="font-size:18px"><span>Total</span><strong id="total">R$ 0,00</strong></div>
+    <button id="btn-checkout" class="btn full">Finalizar pedido</button>
+  </div>
+</aside>
+
+<!-- Personalização de pizzas -->
+<div id="modal" class="modal" aria-hidden="true">
+  <div class="sheet">
+    <div class="title" id="modal-title">Personalize sua pizza</div>
+    <div style="margin:10px 0 6px;font-weight:700">Tamanho da pizza (obrigatório)</div>
+    <label class="opt"><input type="radio" name="tamanho" value="Broto 25 cm" data-multiplier="0.75" checked> Broto 25 cm <small>(-25%)</small></label>
+    <label class="opt"><input type="radio" name="tamanho" value="Grande 35 cm" data-multiplier="1"> Grande 35 cm <small>(sem adicional)</small></label>
+
+    <div id="meio-wrap">
+      <div style="margin:12px 0 6px;font-weight:700">Meio a meio</div>
+      <label class="opt"><input id="opt-meio" type="checkbox"> Escolher 2 sabores</label>
+      <div id="meio-area" class="hidden" style="margin-bottom:10px">
+        <select id="meio-sabor" class="text">
+          <option value="">Selecione o segundo sabor</option>
+        </select>
+      </div>
+    </div>
+
+    <div style="margin:12px 0 6px;font-weight:700">Borda recheada</div>
+    <label class="opt"><input id="opt-borda-requeijao" type="checkbox" data-borda="true" data-price="0" value="Borda recheada com Requeijao Gratis"> Borda recheada com Requeijao Gratis (+ R$ 0,00)</label>
+    <label class="opt"><input id="opt-borda" type="checkbox" data-borda="true" data-price="16" value="Borda recheada com Catupiry Original"> Borda recheada com Catupiry Original (+ R$ 16,00)</label>
+    <label class="opt"><input id="opt-borda-cheddar" type="checkbox" data-borda="true" data-price="16" value="Borda recheada de Cheddar"> Borda recheada de Cheddar (+ R$ 16,00)</label>
+    <label class="opt"><input id="opt-borda-choco" type="checkbox" data-borda="true" data-price="16" value="Borda recheada de Chocolate"> Borda recheada de Chocolate (+ R$ 16,00)</label>
+
+    <div class="footer">
+      <div><strong>Parcial:</strong> <span id="parcial">R$ 0,00</span></div>
+      <div class="actions">
+        <button id="btn-cancel-custom" class="btn sec" type="button">Voltar</button>
+        <button id="btn-add-custom" class="btn add" type="button">Adicionar ao carrinho</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Pizza 2 sabores -->
+<div id="modal-half" class="modal" aria-hidden="true">
+  <div class="sheet">
+    <div class="title">Pizza 2 Sabores</div>
+    <div class="formGrid" style="margin-bottom:10px">
+      <select id="half-sabor-1" class="text">
+        <option value="">1o sabor</option>
+      </select>
+      <select id="half-sabor-2" class="text">
+        <option value="">2o sabor</option>
+      </select>
+    </div>
+
+    <div style="margin:10px 0 6px;font-weight:700">Tamanho da pizza (obrigatorio)</div>
+    <label class="opt"><input type="radio" name="tamanho-half" value="Broto 25 cm" data-multiplier="0.75" checked> Broto 25 cm <small>(-25%)</small></label>
+    <label class="opt"><input type="radio" name="tamanho-half" value="Grande 35 cm" data-multiplier="1"> Grande 35 cm <small>(sem adicional)</small></label>
+
+    <div style="margin:12px 0 6px;font-weight:700">Borda recheada</div>
+    <label class="opt"><input type="checkbox" data-half-borda="true" data-price="0" value="Borda recheada com Requeijao Gratis"> Borda recheada com Requeijao Gratis (+ R$ 0,00)</label>
+    <label class="opt"><input type="checkbox" data-half-borda="true" data-price="16" value="Borda recheada com Catupiry Original"> Borda recheada com Catupiry Original (+ R$ 16,00)</label>
+    <label class="opt"><input type="checkbox" data-half-borda="true" data-price="16" value="Borda recheada de Cheddar"> Borda recheada de Cheddar (+ R$ 16,00)</label>
+    <label class="opt"><input type="checkbox" data-half-borda="true" data-price="16" value="Borda recheada de Chocolate"> Borda recheada de Chocolate (+ R$ 16,00)</label>
+
+    <div class="footer">
+      <div><strong>Parcial:</strong> <span id="half-parcial">R$ 0,00</span></div>
+      <div class="actions">
+        <button id="btn-half-cancel" class="btn sec" type="button">Voltar</button>
+        <button id="btn-half-add" class="btn add" type="button">Adicionar ao carrinho</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Monte sua pizza -->
+<div id="modal-monte" class="modal" aria-hidden="true">
+  <div class="sheet">
+    <div class="title" id="monte-title">Monte sua pizza</div>
+    <div class="muted" style="margin-bottom:8px">Digite os ingredientes.</div>
+    <div id="monte-fields" class="formGrid"></div>
+    <div class="footer">
+      <div></div>
+      <div class="actions">
+        <button id="btn-monte-cancel" class="btn sec" type="button">Cancelar</button>
+        <button id="btn-monte-ok" class="btn add" type="button">Confirmar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Checkout -->
+<div id="modal-checkout" class="modal" aria-hidden="true">
+  <div class="sheet">
+    <h3 style="margin-bottom:12px">Dados para entrega</h3>
+
+    <div class="row">
+      <div class="formGrid">
+        <input id="inp-nome" class="text" placeholder="Nome completo*" required autocomplete="off">
+        <input id="inp-tel" class="text" placeholder="Telefone (WhatsApp)" autocomplete="off">
+      </div>
+    </div>
+
+    <div class="row" style="margin-top:8px">
+      <div class="formGrid multi-cols">
+        <input id="inp-cep" class="text" placeholder="CEP*" inputmode="numeric" maxlength="9" autocomplete="off">
+        <input id="inp-rua" class="text span-2" placeholder="Rua / Avenida*">
+        <input id="inp-num" class="text" placeholder="Número*">
+        <input id="inp-bairro" class="text" placeholder="Bairro*">
+        <input id="inp-cidade" class="text span-2" placeholder="Cidade*">
+        <input id="inp-comp" class="text" placeholder="Complemento (apto/bloco, etc)">
+        <input id="inp-ref" class="text" placeholder="Ponto de referência (opcional)">
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;margin-top:10px">
+      <button id="btn-taxa" class="btn sec" style="flex:1">Calcular entrega</button>
+      <div style="align-self:center;color:var(--muted)">Taxa: <strong id="tx-preview">R$ 0,00</strong></div>
+    </div>
+
+    <div class="row" style="margin-top:10px">
+      <div class="formGrid">
+        <input id="inp-cupom" class="text" placeholder="Cupom promocional (ex.: CONDOR10)">
+        <button id="btn-cupom" class="btn">Aplicar cupom</button>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;margin-top:12px">
+      <button id="btn-voltar" class="btn sec" style="flex:1">Voltar</button>
+      <button id="btn-whats" class="btn" style="flex:2">Enviar no WhatsApp</button>
+    </div>
+
+    <div class="muted" style="margin-top:10px;font-size:12.5px">Horário: Ter-Dom 18:00–00:00 (pedidos até 23:45) · WhatsApp: (11) 99919-2139</div>
+  </div>
+</div>
+
+<script>
+/* ========= util ========= */
+const BRL = v => v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const deg2rad = d => d*Math.PI/180;
+const haversine = (la1,lo1,la2,lo2)=>{
+  const R=6371, dLat=deg2rad(la2-la1), dLon=deg2rad(lo2-lo1);
+  const a=Math.sin(dLat/2)**2 + Math.cos(deg2rad(la1))*Math.cos(deg2rad(la2))*Math.sin(dLon/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+};
+const OPEN_MIN = 18 * 60;
+const ORDER_END_MIN = 23 * 60 + 45;
+const CLOSED_DAY = 1;
+const openNow = () => {
+  const d=new Date();
+  if(d.getDay()===CLOSED_DAY) return false;
+  const m=d.getHours()*60+d.getMinutes();
+  return m>=OPEN_MIN && m<=ORDER_END_MIN;
+};
+const hoursLabel='Ter-Dom 18:00–00:00 (pedidos até 23:45)';
+document.querySelector('#status').textContent = (openNow()?'Aberto agora · ':'Fechado agora · ')+hoursLabel;
+
+/* ========= catálogo ========= */
+const WHATSAPP_ORDER = '5511999192139';
+const SHEETS_WEBAPP_URL = '/.netlify/functions/sheets-post';
+
+const PIZZA_SECTIONS = [
+  { title:'Pizzas Tradicionais', items:[
+    { id:'pz_a_moda_casa', nome:'A Moda da Casa', preco:60.00 },
+    { id:'pz_a_moda_casa_cat', nome:'A Moda da Casa (Catupiry Original)', preco:72.00 },
+    { id:'pz_atum', nome:'Atum', preco:60.00 },
+    { id:'pz_atum_cat', nome:'Atum com Catupiry', preco:63.00 },
+    { id:'pz_atum_cat_original', nome:'Atum com Catupiry Original', preco:75.00 },
+    { id:'pz_atum_especial', nome:'Atum Especial', preco:65.00 },
+    { id:'pz_alho_oleo', nome:'Alho e Óleo', preco:55.00 },
+    { id:'pz_americano', nome:'Americano', preco:65.00 },
+    { id:'pz_brasileira', nome:'Brasileira', preco:67.00 },
+    { id:'pz_bacon', nome:'Bacon', preco:65.00 },
+    { id:'pz_bauru', nome:'Bauru', preco:65.00 },
+    { id:'pz_brocolis', nome:'Brócolis', preco:65.00 },
+    { id:'pz_caipira', nome:'Caipira', preco:60.00 },
+    { id:'pz_caipira_cat', nome:'Caipira (Catupiry Original)', preco:72.00 },
+    { id:'pz_calabresa', nome:'Calabresa', preco:50.00 },
+    { id:'pz_calamussa', nome:'Calamussa', preco:55.00 },
+    { id:'pz_calapiry', nome:'Calapiry', preco:58.00 },
+    { id:'pz_calapiry_cat', nome:'Calapiry (Catupiry Original)', preco:70.00 },
+    { id:'pz_catubacon', nome:'Catubacon', preco:65.00 },
+    { id:'pz_catubacon_cat', nome:'Catubacon II (Catupiry Original)', preco:75.00 },
+    { id:'pz_champignon', nome:'Champignon', preco:65.00 },
+    { id:'pz_canadense', nome:'Canadense', preco:65.00 },
+    { id:'pz_cinco_queijos', nome:'Cinco Queijos', preco:75.00 },
+    { id:'pz_dois_queijos', nome:'Dois Queijos', preco:58.00 },
+    { id:'pz_dois_queijos_cat', nome:'Dois Queijos (Catupiry Original)', preco:70.00 },
+    { id:'pz_escarola', nome:'Escarola', preco:65.00 },
+    { id:'pz_frango_cat', nome:'Frango com Catupiry', preco:58.00 },
+    { id:'pz_frango_cat_original', nome:'Frango com Catupiry Original', preco:70.00 },
+    { id:'pz_frango_cheddar', nome:'Frango com Cheddar', preco:70.00 },
+    { id:'pz_francesa', nome:'Francesa', preco:65.00 },
+    { id:'pz_condor', nome:'Condor', preco:65.00 },
+    { id:'pz_giarolli', nome:'Giarolli', preco:65.00 },
+    { id:'pz_jardineira', nome:'Jardineira', preco:65.00 },
+    { id:'pz_hot_dog', nome:'Hot Dog', preco:58.00 },
+    { id:'pz_light', nome:'Light', preco:70.00 },
+    { id:'pz_lombinho', nome:'Lombinho', preco:58.00 },
+    { id:'pz_lombinho_cat', nome:'Lombinho (Catupiry Original)', preco:70.00 },
+    { id:'pz_marguerita', nome:'Marguerita', preco:62.00 },
+    { id:'pz_mussarela', nome:'Mussarela', preco:50.00 },
+    { id:'pz_milho_verde', nome:'Milho Verde', preco:58.00 },
+    { id:'pz_milho_verde_cat', nome:'Milho Verde (Catupiry Original)', preco:70.00 },
+    { id:'pz_milho_mussarela', nome:'Milho com Mussarela', preco:65.00 },
+    { id:'pz_mineira', nome:'Mineira', preco:65.00 },
+    { id:'pz_napolitana', nome:'Napolitana', preco:62.00 },
+    { id:'pz_paulista', nome:'Paulista', preco:63.00 },
+    { id:'pz_palmito', nome:'Palmito', preco:60.00 },
+    { id:'pz_pepperoni', nome:'Pepperoni', preco:70.00 },
+    { id:'pz_peito_peru', nome:'Peito de Peru', preco:70.00 },
+    { id:'pz_perupery_cat', nome:'Perupery (Catupiry Original)', preco:70.00 },
+    { id:'pz_pizzaiolo', nome:'Pizzaiolo', preco:65.00 },
+    { id:'pz_portuguesa', nome:'Portuguesa', preco:55.00 },
+    { id:'pz_quatro_queijos', nome:'Quatro Queijos', preco:62.00 },
+    { id:'pz_quatro_queijos_cat', nome:'Quatro Queijos (Catupiry Original)', preco:74.00 },
+    { id:'pz_romanesca', nome:'Romanesca', preco:65.00 },
+    { id:'pz_siciliana', nome:'Siciliana', preco:65.00 },
+    { id:'pz_tomate_seco', nome:'Tomate Seco', preco:60.00 },
+    { id:'pz_toscana', nome:'Toscana', preco:62.00 },
+    { id:'pz_tres_queijos', nome:'Três Queijos', preco:60.00 },
+    { id:'pz_tres_queijos_cat', nome:'Três Queijos (Catupiry Original)', preco:72.00 },
+    { id:'pz_vegetariana', nome:'Vegetariana', preco:65.00 },
+    { id:'pz_viena', nome:'Viena', preco:65.00 },
+    { id:'pz_viena_cat', nome:'Viena (Catupiry Original)', preco:75.00 },
+  ]},
+  { title:'Pizzas Especiais', items:[
+    { id:'pz_baiana_especial', nome:'Baiana Especial', preco:70.00 },
+    { id:'pz_brocolis_2', nome:'Brócolis II', preco:68.00 },
+    { id:'pz_calabresa_especial', nome:'Calabresa Especial', preco:62.00 },
+    { id:'pz_escarola_especial_cat', nome:'Escarola Especial (Catupiry Original)', preco:75.00 },
+    { id:'pz_francesa_2', nome:'Francesa II', preco:70.00 },
+    { id:'pz_frango_especial_cat', nome:'Frango Especial (Catupiry Original)', preco:75.00 },
+    { id:'pz_hot_dog_especial', nome:'Hot Dog Especial', preco:65.00 },
+    { id:'pz_peruana_especial', nome:'Peruana Especial', preco:65.00 },
+    { id:'pz_portuguesa_especial', nome:'Portuguesa Especial', preco:62.00 },
+    { id:'pz_camarao', nome:'Camarão', preco:85.00 },
+    { id:'pz_carne_seca_especial', nome:'Carne Seca Especial', preco:75.00 },
+    { id:'pz_catupiry_legitimo', nome:'Catupiry Legítimo', preco:70.00 },
+    { id:'pz_especial_casa', nome:'Especial da Casa', preco:75.00 },
+  ]},
+  { title:'Pizzas Doces', items:[
+    { id:'pz_doce_brigadeiro', nome:'Brigadeiro', preco:62.00 },
+    { id:'pz_doce_prestigio', nome:'Prestígio', preco:62.00 },
+    { id:'pz_doce_kids', nome:'Kids', preco:62.00 },
+    { id:'pz_doce_romeu_julieta', nome:'Romeu e Julieta', preco:62.00 },
+    { id:'pz_doce_mineiro', nome:'Doce Mineiro', preco:62.00 },
+    { id:'pz_doce_kitkat', nome:'Kit Kat', preco:68.00 },
+    { id:'pz_doce_choc_banana', nome:'Chocolate com Banana', preco:68.00 },
+    { id:'pz_doce_choc_morango', nome:'Chocolate com Morango', preco:68.00 },
+    { id:'pz_doce_banana_leite', nome:'Banana com Leite Condensado e Canela', preco:68.00 },
+  ]},
+  { title:'Monte sua Pizza', items:[
+    { id:'pz_monte_4', nome:'Monte sua Pizza (até 4 ingredientes)', preco:75.00 },
+    { id:'pz_monte_5', nome:'Monte sua Pizza (até 5 ingredientes)', preco:80.00 },
+  ]},
+];
+
+const PIZZA_DESCS = {
+  pz_a_moda_casa: 'presunto, azeitonas verdes picadas, catupiry e mussarela.',
+  pz_a_moda_casa_cat: 'presunto, azeitonas verdes picadas, catupiry original e mussarela.',
+  pz_atum: 'atum, cebola e azeitona.',
+  pz_atum_cat: 'atum coberto com catupiry.',
+  pz_atum_cat_original: 'atum coberto com catupiry original.',
+  pz_atum_especial: 'atum solido, cebola e mussarela.',
+  pz_alho_oleo: 'alho frito, mussarela e oregano.',
+  pz_americano: 'presunto, mussarela, bacon e ovos.',
+  pz_brasileira: 'atum, cebola, bacon, ervilha e mussarela.',
+  pz_bacon: 'bacon, oregano e mussarela.',
+  pz_bauru: 'presunto, mussarela e rodelas de tomate.',
+  pz_brocolis: 'brocolis, bacon e mussarela.',
+  pz_caipira: 'frango desfiado, milho verde e catupiry.',
+  pz_caipira_cat: 'frango desfiado, milho verde e catupiry original.',
+  pz_calabresa: 'linguica calabresa, cebola e azeitonas.',
+  pz_calamussa: 'calabresa e mussarela.',
+  pz_calapiry: 'calabresa com catupiry.',
+  pz_calapiry_cat: 'calabresa com catupiry original.',
+  pz_catubacon: 'catupiry e bacon.',
+  pz_catubacon_cat: 'catupiry original e bacon.',
+  pz_champignon: 'champignon, ovos e cobertura de mussarela.',
+  pz_canadense: 'lombinho, palmito, cebola e mussarela.',
+  pz_cinco_queijos: 'mussarela, catupiry, gorgonzola, provolone e parmesao.',
+  pz_dois_queijos: 'mussarela e catupiry.',
+  pz_dois_queijos_cat: 'mussarela e catupiry original.',
+  pz_escarola: 'escarola, bacon, mussarela e azeitonas.',
+  pz_frango_cat: 'frango desfiado e coberto com catupiry.',
+  pz_frango_cat_original: 'frango desfiado e coberto com catupiry original.',
+  pz_frango_cheddar: 'frango desfiado e cheddar.',
+  pz_francesa: 'presunto, champignon, ovos e catupiry ou mussarela.',
+  pz_condor: 'presunto, ovos, bacon, palmito e parmesao.',
+  pz_giarolli: 'palmito, escarola, bacon, mussarela e manjericao.',
+  pz_jardineira: 'frango desfiado, milho, ovos, palmito e mussarela.',
+  pz_hot_dog: 'salsicha, mussarela e batata palha.',
+  pz_light: 'peito de peru, mussarela e palmito.',
+  pz_lombinho: 'lombinho canadense, catupiry e cebola.',
+  pz_lombinho_cat: 'lombinho canadense, catupiry original e cebola.',
+  pz_marguerita: 'mussarela, tomate, parmesao e manjericao.',
+  pz_mussarela: 'mussarela e tomate.',
+  pz_milho_verde: 'milho verde coberto com catupiry.',
+  pz_milho_verde_cat: 'milho verde coberto com catupiry original.',
+  pz_milho_mussarela: 'milho verde e mussarela.',
+  pz_mineira: 'frango, bacon, milho, ovos e mussarela.',
+  pz_napolitana: 'mussarela, alho frito e parmesao.',
+  pz_paulista: 'atum, ovos, ervilha e mussarela.',
+  pz_palmito: 'palmito, ovos, ervilha e mussarela.',
+  pz_pepperoni: 'pepperoni e mussarela.',
+  pz_peito_peru: 'peito de peru e mussarela.',
+  pz_perupery_cat: 'peito de peru com catupiry original.',
+  pz_pizzaiolo: 'calabresa, bacon, cebola, mussarela e palmito.',
+  pz_portuguesa: 'presunto, ovos, ervilhas, azeitonas e mussarela.',
+  pz_quatro_queijos: 'catupiry, mussarela, provolone e parmesao.',
+  pz_quatro_queijos_cat: 'catupiry original, mussarela, provolone e parmesao.',
+  pz_romanesca: 'lombinho canadense, champignon, bacon e mussarela.',
+  pz_siciliana: 'champignon, bacon e cobertura de mussarela.',
+  pz_tomate_seco: 'mussarela, tomate seco e oregano.',
+  pz_toscana: 'calabresa moida, cebola fatiada e mussarela.',
+  pz_tres_queijos: 'mussarela, catupiry e provolone.',
+  pz_tres_queijos_cat: 'mussarela, catupiry original e provolone.',
+  pz_vegetariana: 'mussarela, brocolis, escarola, milho e palmito.',
+  pz_viena: 'atum, catupiry, ervilha, milho e palmito.',
+  pz_viena_cat: 'atum, catupiry original, ervilha, milho e palmito.',
+  pz_baiana_especial: 'calabresa, ovos, cebola, pimenta e catupiry.',
+  pz_brocolis_2: 'brocolis, bacon, palmito, milho, alho, ervilha, mussarela e catupiry.',
+  pz_calabresa_especial: 'linguica calabresa, cebola, ovos e mussarela.',
+  pz_escarola_especial_cat: 'escarola refogada, bacon, catupiry original e champignon.',
+  pz_francesa_2: 'presunto, frango desfiado, ovos, milho, ervilha e mussarela.',
+  pz_frango_especial_cat: 'frango desfiado, palmito, bacon, catupiry original e tomate seco.',
+  pz_hot_dog_especial: 'salsicha, mussarela, milho, ervilha, catupiry e batata palha.',
+  pz_peruana_especial: 'atum, champignon, cebola, mussarela e catupiry.',
+  pz_portuguesa_especial: 'presunto, ovos, ervilha, palmito e mussarela.',
+  pz_camarao: 'camarao refogado, cebola, champignon, mussarela e catupiry.',
+  pz_carne_seca_especial: 'carne seca, cebola, mussarela, catupiry e champignon.',
+  pz_catupiry_legitimo: 'frango desfiado com catupiry legitimo.',
+  pz_especial_casa: 'presunto, mussarela, lombo, palmito, cebola e bacon.',
+  pz_doce_brigadeiro: 'chocolate ao leite com chocolate granulado.',
+  pz_doce_prestigio: 'chocolate ao leite e coco ralado.',
+  pz_doce_kids: 'chocolate ao leite e confete colorido.',
+  pz_doce_romeu_julieta: 'mussarela e goiabada.',
+  pz_doce_mineiro: 'doce de leite com mussarela.',
+  pz_doce_kitkat: 'chocolate com KitKat.',
+  pz_doce_choc_banana: 'chocolate com banana.',
+  pz_doce_choc_morango: 'chocolate com morango.',
+  pz_doce_banana_leite: 'banana, leite condensado e canela.',
+  pz_monte_4: 'escolha ate 4 ingredientes.',
+  pz_monte_5: 'escolha ate 5 ingredientes.',
+};
+
+const PIZZAS = PIZZA_SECTIONS.flatMap(section => section.items);
+
+const BEBIDAS = [
+  { id:'coca_2l', nome:'Coca-Cola 2 litros', preco:20.00 },
+  { id:'coca_1l', nome:'Coca-Cola 1 litro', preco:14.00 },
+  { id:'guarana_2l', nome:'Guarana Antarctica 2 litros', preco:16.00 },
+  { id:'guarana_1l', nome:'Guarana Antarctica 1 litro', preco:12.00 },
+  { id:'fanta_2l', nome:'Fanta laranja ou uva 2 litros', preco:16.00 },
+  { id:'sprite_2l', nome:'Sprite 2 litros', preco:16.00 },
+  { id:'dolly_2l', nome:'Dolly 2 litros', preco:12.00 },
+  { id:'tiss_2l', nome:'Tiss guarana ou itubaina 2 litros', preco:10.00 },
+  { id:'suco_del_valle_1l', nome:'Suco Del Valle 1 litro', preco:15.00, askFlavor:true, desc:'Sabor a escolher.' }
+];
+
+const PASTEIS = [
+  { id:'pst_pizza', nome:'Pizza', preco:16.00 },
+  { id:'pst_portuguesa', nome:'Portuguesa', preco:18.00 },
+  { id:'pst_carne', nome:'Carne', preco:16.00 },
+  { id:'pst_queijo', nome:'Queijo', preco:16.00 },
+  { id:'pst_carne_queijo', nome:'Carne com Queijo', preco:18.00 },
+  { id:'pst_frango_cheddar', nome:'Frango com Cheddar', preco:20.00 },
+  { id:'pst_carne_ovo', nome:'Carne, Ovo, Azeitona e Champignon', preco:20.00 },
+  { id:'pst_frango_cat', nome:'Frango com Catupiry', preco:18.00 },
+  { id:'pst_frango_milho_cat', nome:'Frango com Milho e Catupiry', preco:20.00 },
+  { id:'pst_palmito_mussarela', nome:'Palmito com Mussarela', preco:18.00 },
+  { id:'pst_frango_cat_muss', nome:'Frango com Catupiry e Mussarela', preco:20.00 },
+  { id:'pst_dois_queijos', nome:'2 Queijos', preco:18.00 },
+  { id:'pst_tres_queijos', nome:'3 Queijos', preco:20.00 },
+  { id:'pst_quatro_queijos', nome:'4 Queijos', preco:20.00 },
+  { id:'pst_calabresa_queijo', nome:'Calabresa com Queijo', preco:18.00 },
+  { id:'pst_bauru', nome:'Bauru', preco:18.00 },
+  { id:'pst_baiano', nome:'Baiano', preco:18.00 },
+  { id:'pst_chocolate', nome:'Chocolate', preco:17.00 },
+  { id:'pst_doce_leite', nome:'Doce de Leite', preco:17.00 },
+];
+
+const GALLERY = [
+  { src:'images/1.jpg', nome:'Foto 1' },
+  { src:'images/2.jpg', nome:'Foto 2' },
+  { src:'images/3.jpg', nome:'Foto 3' },
+  { src:'images/4.jpg', nome:'Foto 4' },
+  { src:'images/5.jpg', nome:'Foto 5' },
+  { src:'images/6.jpg', nome:'Foto 6' },
+  { src:'images/7.jpg', nome:'Foto 7' },
+  { src:'images/8.jpg', nome:'Foto 8' },
+  { src:'images/9.jpg', nome:'Foto 9' },
+  { src:'images/10.jpg', nome:'Foto 10' },
+  { src:'images/11.jpg', nome:'Foto 11' },
+  { src:'images/12.jpg', nome:'Foto 12' },
+  { src:'images/13.jpg', nome:'Foto 13' },
+  { src:'images/14.jpg', nome:'Foto 14' },
+  { src:'images/15.jpg', nome:'Foto 15' },
+  { src:'images/16.jpg', nome:'Foto 16' },
+  { src:'images/17.jpg', nome:'Foto 17' },
+  { src:'images/18.jpg', nome:'Foto 18' },
+  { src:'images/19.jpg', nome:'Foto 19' },
+  { src:'images/20.jpg', nome:'Foto 20' },
+  { src:'images/21.jpg', nome:'Foto 21' },
+  { src:'images/22.jpg', nome:'Foto 22' },
+  { src:'images/23.jpg', nome:'Foto 23' },
+  { src:'images/24.jpg', nome:'Foto 24' }
+];
+
+const SHOW_MENU_IMAGES = false;
+
+function menuCard(p,type,idx){
+  const el=document.createElement('div'); el.className='card reveal';
+  el.style.setProperty('--delay', `${120 + idx*60}ms`);
+  const priceLabel = (typeof p.preco === 'number') ? BRL(p.preco) : 'Consulte';
+  const imgHtml = (SHOW_MENU_IMAGES && p.img)
+    ? `<div class="img"><img src="${p.img}" alt="${p.nome}" loading="lazy"></div>`
+    : '';
+  const desc = p.desc || (type === 'pizza' ? PIZZA_DESCS[p.id] : '');
+  const descHtml = desc ? `<div class="muted">${desc}</div>` : '';
+  const actionHtml = (typeof p.preco === 'number')
+    ? `<button class="btn sec" data-add="${p.id}" data-type="${type}">+ Adicionar</button>`
+    : `<button class="btn sec" data-consult="${p.nome}">Consultar</button>`;
+  el.innerHTML=`${imgHtml}
+  <div class="body">
+    <div class="row-between"><strong>${p.nome}</strong><span class="price">${priceLabel}</span></div>
+    ${descHtml}
+    <div class="row-between">${actionHtml}</div>
+  </div>`;
+  return el;
+}
+
+function photoCard(p,idx){
+  const el=document.createElement('div'); el.className='card photo-card reveal';
+  el.style.setProperty('--delay', `${80 + idx*60}ms`);
+  el.innerHTML=`<div class="img"><img src="${p.src}" alt="${p.nome}" loading="lazy"></div>
+  <div class="body"><strong>${p.nome}</strong></div>`;
+  return el;
+}
+
+const gp=document.getElementById('grid-pizzas');
+PIZZA_SECTIONS.forEach((section,si)=>{
+  const title=document.createElement('div');
+  title.className='menu-subtitle';
+  title.textContent=section.title;
+  gp.appendChild(title);
+  section.items.forEach((p,i)=>gp.appendChild(menuCard(p,'pizza', i + (si*100))));
+});
+
+const gpastel=document.getElementById('grid-pasteis');
+if(gpastel){ PASTEIS.forEach((p,i)=>gpastel.appendChild(menuCard(p,'pastel',i))); }
+
+const gb=document.getElementById('grid-bebidas');
+BEBIDAS.forEach((p,i)=>gb.appendChild(menuCard(p,'bebida',i)));
+
+const gf=document.getElementById('grid-fotos');
+if(gf){ GALLERY.forEach((p,i)=>gf.appendChild(photoCard(p,i))); }
+
+
+/* ========= carrinho ========= */
+let CART=[]; let TAXA=0.00; let DESCONTO=0.00;
+const drawer=document.getElementById('drawer');
+const openDrawer=()=>{drawer.classList.add('open'); drawer.setAttribute('aria-hidden','false');};
+const closeDrawer=()=>{drawer.classList.remove('open'); drawer.setAttribute('aria-hidden','true');};
+document.getElementById('btn-cart').onclick=openDrawer;
+document.getElementById('btn-close').onclick=closeDrawer;
+function addToCart(item){CART.push(item);renderCart();openDrawer()}
+function renderCart(){
+  const list=document.getElementById('cart-list'); list.innerHTML=''; let sub=0;
+  CART.forEach((it,idx)=>{sub+=it.preco;const d=document.createElement('div');d.className='cart-item';
+    d.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center">
+      <div><strong>${it.nome}</strong>${it.det?`<div class="muted" style="margin-top:4px">${it.det}</div>`:''}</div>
+      <div style="text-align:right"><div><strong>${BRL(it.preco)}</strong></div>
+        <button class="btn sec" style="margin-top:6px;padding:6px 10px" data-rm="${idx}">remover</button></div></div>`;
+    list.appendChild(d);
+  });
+  list.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{CART.splice(+b.dataset.rm,1);renderCart()});
+  document.getElementById('sub').textContent=BRL(sub);
+  document.getElementById('taxa').textContent=BRL(TAXA);
+  document.getElementById('desc').textContent=BRL(DESCONTO);
+  document.getElementById('total').textContent=BRL(Math.max(0, sub+TAXA-DESCONTO));
+  const countEl=document.getElementById('cart-count');
+  if(countEl){
+    countEl.textContent=CART.length;
+    countEl.classList.toggle('hidden', CART.length===0);
+  }
+}
+
+function buildOrderPayload(){
+  const nome=document.getElementById('inp-nome').value.trim();
+  const tel=document.getElementById('inp-tel').value.trim();
+  const cep=document.getElementById('inp-cep').value.trim();
+  const rua=document.getElementById('inp-rua').value.trim();
+  const num=document.getElementById('inp-num').value.trim();
+  const bairro=document.getElementById('inp-bairro').value.trim();
+  const cidade=document.getElementById('inp-cidade').value.trim();
+  const comp=document.getElementById('inp-comp').value.trim();
+  const ref=document.getElementById('inp-ref').value.trim();
+  const subtotal = CART.reduce((a,b)=>a+b.preco,0);
+  const total = subtotal + TAXA - DESCONTO;
+  return {
+    id: `PC-${Date.now()}`,
+    createdAt: new Date().toISOString(),
+    customer: { nome, tel },
+    address: { cep, rua, num, bairro, cidade, comp, ref },
+    items: CART.map(it=>({ nome: it.nome, preco: it.preco, det: it.det || '' })),
+    totals: { subtotal, taxa: TAXA, desconto: DESCONTO, total }
+  };
+}
+
+async function sendOrderToSheets(pedido){
+  if(!SHEETS_WEBAPP_URL) return;
+  try{
+    await fetch(SHEETS_WEBAPP_URL, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(pedido)
+    });
+  }catch(err){
+    console.warn('Falha ao enviar pedido para Sheets.', err);
+  }
+}
+
+function addBebidaToCart(p){
+  if(!p) return;
+  if(p.askFlavor){
+    const flavor = (prompt('Digite o sabor do suco (ex.: uva, pessego):') || '').trim();
+    if(!flavor){ alert('Informe o sabor para adicionar o suco.'); return; }
+    addToCart({nome:p.nome,preco:p.preco,det:`Sabor: ${flavor}`});
+    return;
+  }
+  addToCart({nome:p.nome,preco:p.preco});
+}
+/* bebidas entram direto */
+document.body.addEventListener('click',ev=>{
+  const consult=ev.target.closest('[data-consult]');
+  if(consult){
+    const item=consult.dataset.consult;
+    const msg=encodeURIComponent(`Olá! Gostaria de consultar o preço do item: ${item}`);
+    window.open(`https://wa.me/${WHATSAPP_ORDER}?text=${msg}`,'_blank');
+    return;
+  }
+  const b=ev.target.closest('[data-add]'); if(!b) return;
+  const id=b.dataset.add, type=b.dataset.type;
+  if(type==='bebida'){const p=BEBIDAS.find(x=>x.id===id); addBebidaToCart(p); return;}
+  if(type==='pizza'){const p=PIZZAS.find(x=>x.id===id); openCustomize(p); return;}
+  if(type==='pastel'){const p=PASTEIS.find(x=>x.id===id); if(p && typeof p.preco==='number'){ addToCart({nome:p.nome,preco:p.preco}); } return;}
+});
+
+/* ========= modal pizza ========= */
+const modal=document.getElementById('modal'); let CURRENT=null;
+const meioWrap=document.getElementById('meio-wrap');
+const meioToggle=document.getElementById('opt-meio');
+const meioArea=document.getElementById('meio-area');
+const meioSelect=document.getElementById('meio-sabor');
+const MONTE_PIZZAS=new Set(['pz_monte_4','pz_monte_5']);
+const monteModal=document.getElementById('modal-monte');
+const monteTitle=document.getElementById('monte-title');
+const monteFields=document.getElementById('monte-fields');
+const monteCancel=document.getElementById('btn-monte-cancel');
+const monteOk=document.getElementById('btn-monte-ok');
+let monteCallback=null;
+
+function closeMonteModal(){
+  if(monteModal) monteModal.setAttribute('aria-hidden','true');
+}
+function openMonteModal(prod, callback){
+  if(!monteModal || !monteFields) return;
+  const count = prod.id === 'pz_monte_4' ? 4 : 5;
+  if(monteTitle) monteTitle.textContent = `Monte sua pizza (${count} ingredientes)`;
+  monteFields.innerHTML='';
+  for(let i=1;i<=count;i++){
+    const input=document.createElement('input');
+    input.className='text';
+    input.placeholder=`Ingrediente ${i}`;
+    input.autocomplete='off';
+    monteFields.appendChild(input);
+  }
+  monteCallback=callback;
+  monteModal.setAttribute('aria-hidden','false');
+  if(monteFields.firstElementChild) monteFields.firstElementChild.focus();
+}
+if(monteModal){
+  monteModal.addEventListener('click',e=>{
+    if(e.target===monteModal){
+      const cb=monteCallback;
+      monteCallback=null;
+      closeMonteModal();
+      if(cb) cb(null);
+    }
+  });
+}
+if(monteCancel){
+  monteCancel.onclick=()=>{
+    const cb=monteCallback;
+    monteCallback=null;
+    closeMonteModal();
+    if(cb) cb(null);
+  };
+}
+if(monteOk){
+  monteOk.onclick=()=>{
+    if(!monteFields) return;
+    const inputs=[...monteFields.querySelectorAll('input')];
+    const values=inputs.map(inp=>inp.value.trim());
+    if(values.some(v=>!v)){
+      alert('Preencha todos os ingredientes.');
+      return;
+    }
+    const cb=monteCallback;
+    monteCallback=null;
+    closeMonteModal();
+    if(cb) cb(values.join(', '));
+  };
+}
+function buildMeioOptions(currentId){
+  if(!meioSelect) return;
+  meioSelect.innerHTML='<option value="">Selecione o segundo sabor</option>';
+  PIZZAS.forEach(p=>{
+    if(p.id===currentId) return;
+    if(MONTE_PIZZAS.has(p.id)) return;
+    const opt=document.createElement('option');
+    opt.value=p.id;
+    opt.textContent=p.nome;
+    meioSelect.appendChild(opt);
+  });
+}
+function getMeioPizza(){
+  if(!meioToggle || !meioToggle.checked) return null;
+  const otherId = meioSelect ? meioSelect.value : '';
+  if(!otherId) return null;
+  return PIZZAS.find(x=>x.id===otherId) || null;
+}
+function openCustomizeWithIngredients(prod, ingredients){
+  CURRENT=JSON.parse(JSON.stringify(prod));
+  CURRENT.customIngredients = ingredients || '';
+  document.getElementById('modal-title').textContent=`Personalize: ${prod.nome}`;
+  modal.querySelectorAll('input[name="tamanho"]').forEach(r=>r.checked=(r.value==='Broto 25 cm'));
+  modal.querySelectorAll('input[data-borda]').forEach(b=>b.checked=false);
+  const isMonte = MONTE_PIZZAS.has(prod.id);
+  if(meioToggle){
+    meioToggle.checked=false;
+    meioToggle.disabled=isMonte;
+  }
+  if(meioArea) meioArea.classList.add('hidden');
+  if(meioWrap) meioWrap.classList.toggle('hidden', isMonte);
+  buildMeioOptions(prod.id);
+  updateParcial(); modal.setAttribute('aria-hidden','false');
+}
+function openCustomize(prod){
+  if(MONTE_PIZZAS.has(prod.id)){
+    openMonteModal(prod, (ingredients)=>{
+      if(!ingredients) return;
+      openCustomizeWithIngredients(prod, ingredients);
+    });
+    return;
+  }
+  openCustomizeWithIngredients(prod, '');
+}
+modal.addEventListener('click',e=>{if(e.target===modal) modal.setAttribute('aria-hidden','true')});
+document.getElementById('btn-cancel-custom').onclick=()=>modal.setAttribute('aria-hidden','true');
+function updateParcial(){
+  if(!CURRENT) return;
+  const sizeInput = modal.querySelector('input[name="tamanho"]:checked');
+  const sizeMultiplier = sizeInput ? parseFloat(sizeInput.dataset.multiplier || '1') : 1;
+  let base=CURRENT.preco;
+  const meioPizza=getMeioPizza();
+  if(meioPizza) base=Math.max(base, meioPizza.preco);
+  let v=base * sizeMultiplier;
+  modal.querySelectorAll('input[data-borda]:checked').forEach(b=>{
+    v+=parseFloat(b.dataset.price||'0');
+  });
+  v=Math.round(v*100)/100;
+  document.getElementById('parcial').textContent=BRL(v);
+}
+document.querySelectorAll('input[name="tamanho"]').forEach(r=>r.addEventListener('change',updateParcial));
+modal.querySelectorAll('input[data-borda]').forEach(b=>b.addEventListener('change',updateParcial));
+if(meioToggle){
+  meioToggle.addEventListener('change',()=>{
+    if(meioArea) meioArea.classList.toggle('hidden', !meioToggle.checked);
+    updateParcial();
+  });
+}
+if(meioSelect) meioSelect.addEventListener('change',updateParcial);
+document.getElementById('btn-add-custom').onclick=()=>{
+  let v=CURRENT.preco; let det=[];
+  const meioPizza=getMeioPizza();
+  if(meioToggle && meioToggle.checked){
+    if(!meioPizza){ alert('Selecione o segundo sabor.'); return; }
+    det.push(`Meio a meio: ${CURRENT.nome} + ${meioPizza.nome}`);
+    v=Math.max(v, meioPizza.preco);
+  }
+  if(CURRENT.customIngredients){
+    det.push(`Ingredientes: ${CURRENT.customIngredients}`);
+  }
+  const sizeInput = modal.querySelector('input[name="tamanho"]:checked');
+  const sizeMultiplier = sizeInput ? parseFloat(sizeInput.dataset.multiplier || '1') : 1;
+  if(sizeInput) det.push('Tamanho: '+sizeInput.value);
+  v = v * sizeMultiplier;
+  modal.querySelectorAll('input[data-borda]:checked').forEach(b=>{
+    v+=parseFloat(b.dataset.price||'0');
+    det.push(b.value);
+  });
+  v=Math.round(v*100)/100;
+  addToCart({nome:CURRENT.nome,preco:v,det:det.join(' · ')}); modal.setAttribute('aria-hidden','true');
+};
+
+/* ========= pizza 2 sabores ========= */
+const halfModal=document.getElementById('modal-half');
+const halfBtn=document.getElementById('btn-half');
+const halfSelect1=document.getElementById('half-sabor-1');
+const halfSelect2=document.getElementById('half-sabor-2');
+const halfParcial=document.getElementById('half-parcial');
+const halfCancel=document.getElementById('btn-half-cancel');
+const halfAdd=document.getElementById('btn-half-add');
+function buildHalfOptions(){
+  if(!halfSelect1 || !halfSelect2) return;
+  const items = PIZZAS;
+  const fill = (select) => {
+    select.innerHTML='<option value="">Selecione o sabor</option>';
+    items.forEach(p=>{
+      const opt=document.createElement('option');
+      opt.value=p.id;
+      opt.textContent=p.nome;
+      select.appendChild(opt);
+    });
+  };
+  fill(halfSelect1);
+  fill(halfSelect2);
+}
+function getHalfPizza(id){
+  return PIZZAS.find(x=>x.id===id) || null;
+}
+function collectHalfIngredients(p1, p2, done){
+  const tasks=[];
+  const result={};
+  if(MONTE_PIZZAS.has(p1.id)) tasks.push({key:'p1', prod:p1});
+  if(MONTE_PIZZAS.has(p2.id)) tasks.push({key:'p2', prod:p2});
+  if(!tasks.length){ done(result); return; }
+  const next=()=>{
+    if(!tasks.length){ done(result); return; }
+    const task=tasks.shift();
+    openMonteModal(task.prod, (ingredients)=>{
+      if(!ingredients){ done(null); return; }
+      result[task.key]=ingredients;
+      next();
+    });
+  };
+  next();
+}
+function updateHalfParcial(){
+  if(!halfModal || !halfParcial) return;
+  const p1=getHalfPizza(halfSelect1 ? halfSelect1.value : '');
+  const p2=getHalfPizza(halfSelect2 ? halfSelect2.value : '');
+  let base=0;
+  if(p1 && p2) base=Math.max(p1.preco, p2.preco);
+  const sizeInput = halfModal.querySelector('input[name="tamanho-half"]:checked');
+  const sizeMultiplier = sizeInput ? parseFloat(sizeInput.dataset.multiplier || '1') : 1;
+  let v=base * sizeMultiplier;
+  halfModal.querySelectorAll('input[data-half-borda]:checked').forEach(b=>{
+    v+=parseFloat(b.dataset.price||'0');
+  });
+  v=Math.round(v*100)/100;
+  halfParcial.textContent=BRL(v);
+}
+function openHalfModal(){
+  if(!halfModal) return;
+  buildHalfOptions();
+  if(halfSelect1) halfSelect1.value='';
+  if(halfSelect2) halfSelect2.value='';
+  halfModal.querySelectorAll('input[name="tamanho-half"]').forEach(r=>r.checked=(r.value==='Broto 25 cm'));
+  halfModal.querySelectorAll('input[data-half-borda]').forEach(b=>b.checked=false);
+  updateHalfParcial();
+  halfModal.setAttribute('aria-hidden','false');
+}
+if(halfBtn) halfBtn.onclick=()=>openHalfModal();
+if(halfModal){
+  halfModal.addEventListener('click',e=>{if(e.target===halfModal) halfModal.setAttribute('aria-hidden','true')});
+}
+if(halfCancel) halfCancel.onclick=()=>halfModal && halfModal.setAttribute('aria-hidden','true');
+if(halfSelect1) halfSelect1.addEventListener('change',updateHalfParcial);
+if(halfSelect2) halfSelect2.addEventListener('change',updateHalfParcial);
+if(halfModal){
+  halfModal.querySelectorAll('input[name="tamanho-half"]').forEach(r=>r.addEventListener('change',updateHalfParcial));
+  halfModal.querySelectorAll('input[data-half-borda]').forEach(b=>b.addEventListener('change',updateHalfParcial));
+}
+if(halfAdd) halfAdd.onclick=()=>{
+  const p1=getHalfPizza(halfSelect1 ? halfSelect1.value : '');
+  const p2=getHalfPizza(halfSelect2 ? halfSelect2.value : '');
+  if(!p1 || !p2){ alert('Selecione os dois sabores.'); return; }
+  if(p1.id===p2.id){ alert('Selecione dois sabores diferentes.'); return; }
+  const finalize=(ingredients)=>{
+    if(ingredients === null) return;
+    let det=[];
+    det.push(`Meio a meio: ${p1.nome} + ${p2.nome}`);
+    if(ingredients.p1) det.push(`Ingredientes ${p1.nome}: ${ingredients.p1}`);
+    if(ingredients.p2) det.push(`Ingredientes ${p2.nome}: ${ingredients.p2}`);
+    const sizeInput = halfModal.querySelector('input[name="tamanho-half"]:checked');
+    const sizeMultiplier = sizeInput ? parseFloat(sizeInput.dataset.multiplier || '1') : 1;
+    if(sizeInput) det.push('Tamanho: '+sizeInput.value);
+    let v=Math.max(p1.preco, p2.preco) * sizeMultiplier;
+    halfModal.querySelectorAll('input[data-half-borda]:checked').forEach(b=>{
+      v+=parseFloat(b.dataset.price||'0');
+      det.push(b.value);
+    });
+    v=Math.round(v*100)/100;
+    addToCart({nome:'Pizza 2 Sabores',preco:v,det:det.join(' · ')});
+    halfModal.setAttribute('aria-hidden','true');
+  };
+  collectHalfIngredients(p1, p2, finalize);
+};
+
+/* ========= checkout ========= */
+const drawerBtnCheckout=document.getElementById('btn-checkout'); const modalCheckout=document.getElementById('modal-checkout');
+drawerBtnCheckout.onclick=()=>{ if(!CART.length){alert('Seu carrinho está vazio.');return;} closeDrawer(); modalCheckout.setAttribute('aria-hidden','false'); };
+modalCheckout.addEventListener('click',e=>{if(e.target===modalCheckout) modalCheckout.setAttribute('aria-hidden','true')});
+document.getElementById('btn-voltar').onclick=()=>modalCheckout.setAttribute('aria-hidden','true');
+
+/* Cupom (CONDOR10 primeira compra, CONDOR5/CONDOR10 sempre) */
+document.getElementById('btn-cupom').onclick=()=>{
+  const code=(document.getElementById('inp-cupom').value||'').trim().toUpperCase();
+  let sub=CART.reduce((a,b)=>a+b.preco,0); let off=0;
+  if(code==='CONDOR10' && !localStorage.getItem('condors_first')){off=sub*0.10;localStorage.setItem('condors_first','ok');}
+  else if(code==='CONDOR5'){off=sub*0.05;}
+  else if(code==='CONDOR10'){off=sub*0.10;}
+  else{alert('Cupom inválido ou já utilizado.');}
+  DESCONTO=Math.round(off*100)/100; renderCart();
+};
+
+/* ViaCEP auto-preencher */
+const cepInput = document.getElementById('inp-cep');
+let lastCepLookup='';
+const applyCepData = (j) => {
+  if(!j || j.erro) return false;
+  document.getElementById('inp-rua').value=j.logradouro || '';
+  document.getElementById('inp-bairro').value=j.bairro || '';
+  document.getElementById('inp-cidade').value=(j.localidade?`${j.localidade} - ${j.uf}`:'');
+  return true;
+};
+const fetchViaCepJsonp = (cep) => new Promise((resolve, reject) => {
+  const cb = `viaCepCb_${Date.now()}`;
+  const cleanup = () => {
+    delete window[cb];
+    script.remove();
+  };
+  window[cb] = (data) => { resolve(data); cleanup(); };
+  const script = document.createElement('script');
+  script.src = `https://viacep.com.br/ws/${cep}/json/?callback=${cb}`;
+  script.onerror = () => { reject(new Error('jsonp')); cleanup(); };
+  document.body.appendChild(script);
+});
+async function fillAddressFromCep(value){
+  const cep=value.replace(/\D/g,'');
+  if(cep.length!=8){ if(cep.length<8) lastCepLookup=''; return; }
+  if(cep==lastCepLookup) return;
+  lastCepLookup=cep;
+  try{
+    const r=await fetch(`https://viacep.com.br/ws/${cep}/json/`, {cache:'no-store'});
+    const j=await r.json();
+    if(applyCepData(j)) return;
+  }catch{}
+  try{
+    const j=await fetchViaCepJsonp(cep);
+    applyCepData(j);
+  }catch{}
+}
+cepInput.addEventListener('input',e=>fillAddressFromCep(e.target.value));
+cepInput.addEventListener('blur',e=>fillAddressFromCep(e.target.value));
+
+/* Calcular entrega (CEP por faixa numerica) */
+const BASE_CEP = '04864002';
+const BASE_CEP_NUM = parseInt(BASE_CEP, 10);
+const CEP_DELTA_RATES = [
+  {max:200, rate:3.00},
+  {max:800, rate:6.00},
+  {max:2000, rate:10.00},
+  {max:4000, rate:14.00},
+  {max:8000, rate:16.00},
+  {max:15000, rate:20.00}
+];
+function taxaPorCepDelta(diff){
+  for(const faixa of CEP_DELTA_RATES){
+    if(diff <= faixa.max) return faixa.rate;
+  }
+  return null; // fora da area
+}
+document.getElementById('btn-taxa').onclick = ()=>{
+  const cep=document.getElementById('inp-cep').value.replace(/\D/g,'');
+  if(cep.length!=8){ alert('Preencha o CEP para calcular a entrega.'); return; }
+  const txPrev=document.getElementById('tx-preview');
+  txPrev.textContent='calculando...';
+  const cepNum = parseInt(cep, 10);
+  if(Number.isNaN(cepNum)){ alert('Preencha o CEP para calcular a entrega.'); return; }
+  const diff = Math.abs(cepNum - BASE_CEP_NUM);
+  const t = taxaPorCepDelta(diff);
+  if(t==null){ alert('CEP fora da area de entrega.'); TAXA=0; }
+  else { TAXA=t; }
+  txPrev.textContent = BRL(TAXA);
+  renderCart();
+};
+
+/* Enviar WhatsApp */
+document.getElementById('btn-whats').onclick=()=>{
+  const nome=document.getElementById('inp-nome').value.trim();
+  const tel=document.getElementById('inp-tel').value.trim();
+  const cep=document.getElementById('inp-cep').value.trim();
+  const rua=document.getElementById('inp-rua').value.trim();
+  const num=document.getElementById('inp-num').value.trim();
+  const bairro=document.getElementById('inp-bairro').value.trim();
+  const cidade=document.getElementById('inp-cidade').value.trim();
+  const comp=document.getElementById('inp-comp').value.trim();
+  const ref=document.getElementById('inp-ref').value.trim();
+
+  if(!nome || !cep || !rua || !num || !bairro || !cidade){ alert('Preencha os campos obrigatórios (nome, CEP, endereço).'); return; }
+  if(TAXA===0){ if(!confirm('A taxa está R$ 0,00. Deseja enviar assim mesmo? (Clique em "Calcular entrega" para estimar)')) return; }
+
+  const pedido = buildOrderPayload();
+  sendOrderToSheets(pedido);
+
+  const linhas=[];
+  linhas.push(`\u{1F355} *Pedido Pizzaria Condors*`, '');
+  CART.forEach((it,i)=>linhas.push(`${i+1}. ${it.nome} - ${BRL(it.preco)}${it.det?` | ${it.det}`:''}`));
+  linhas.push(''); linhas.push(`\u{1F9FE} Subtotal: ${document.getElementById('sub').textContent}`);
+  linhas.push(`\u{1F69A} Taxa: ${BRL(TAXA)}`); linhas.push(`\u{1F3F7} Desconto: ${document.getElementById('desc').textContent}`);
+  const total = CART.reduce((a,b)=>a+b.preco,0)+TAXA-DESCONTO;
+  linhas.push(`\u{1F4B5} *Total: ${BRL(total)}*`,'',`\u{1F4CD} *Entrega*`);
+  linhas.push(`${rua}, ${num} ${comp?`- ${comp}`:''}`);
+  linhas.push(`${bairro} - ${cidade} - CEP ${cep}`);
+  if(ref) linhas.push(`Referência: ${ref}`); if(tel) linhas.push(`Contato: ${tel}`);
+  linhas.push('', openNow()? '\u{1F525} Pedido para *agora*' : '\u{23F0} Fora do horário. Desejo programar/confirmar horário.');
+  const msg=encodeURIComponent(linhas.join('\n'));
+  window.open(`https://wa.me/5511999192139?text=${msg}`,'_blank');
+  CART=[]; TAXA=0.00; DESCONTO=0.00;
+  renderCart();
+  document.getElementById('tx-preview').textContent=BRL(TAXA);
+  modalCheckout.setAttribute('aria-hidden','true');
+  closeDrawer();
+
+};
+
+/* ========= pizza rain ========= */
+const rainCanvas=document.getElementById('pizza-rain');
+if(rainCanvas){
+  const ctx=rainCanvas.getContext('2d');
+  const TAU=Math.PI*2;
+  let w=0,h=0,dpr=1,pieces=[];
+  const reduceMotion=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const rand=(min,max)=>Math.random()*(max-min)+min;
+  const pick=(arr)=>arr[Math.floor(Math.random()*arr.length)];
+  const PIECES=[{type:'emoji', value:'\u{1F355}'},{type:'pastel'}];
+  function makePiece(seed){
+    const size=rand(18,46);
+    const bubbleCount=Math.floor(rand(3,7));
+    const bubbles=Array.from({length:bubbleCount},()=>({
+      x:rand(-0.35,0.35),
+      y:rand(-0.22,0.22),
+      r:rand(0.05,0.1),
+      a:rand(0.08,0.18),
+      light:Math.random()>0.45
+    }));
+    const toast=rand(0.9,1.15);
+    return{
+      x:rand(0,w),
+      y:seed?rand(0,h):-rand(60,h),
+      size,
+      speed:rand(0.6,1.8),
+      drift:rand(-0.35,0.35),
+      rot:rand(0,TAU),
+      rotSpd:rand(-0.015,0.015),
+      alpha:rand(0.2,0.6),
+      kind:pick(PIECES),
+      bubbles,
+      toast
+    };
+  }
+  function resize(){
+    dpr=window.devicePixelRatio||1;
+    w=window.innerWidth;h=window.innerHeight;
+    rainCanvas.width=w*dpr;rainCanvas.height=h*dpr;
+    rainCanvas.style.width=w+'px';rainCanvas.style.height=h+'px';
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    const count=Math.max(18,Math.floor((w*h)/45000));
+    pieces=Array.from({length:count},()=>makePiece(true));
+  }
+  function drawPastel(p){
+    const size=p.size;
+    const toast=p.toast||1;
+    const w=size*1.05;
+    const h=size*0.62;
+    const r=Math.min(w,h)*0.14;
+    const x=-w/2, y=-h/2;
+    const grad=ctx.createLinearGradient(x,y,x,y+h);
+    const light=Math.min(78,Math.max(60,70*toast));
+    const dark=Math.min(58,Math.max(38,50*toast));
+    grad.addColorStop(0,`hsl(38,85%,${light}%)`);
+    grad.addColorStop(1,`hsl(33,60%,${dark}%)`);
+    ctx.fillStyle=grad;
+    ctx.beginPath();
+    ctx.moveTo(x+r,y);
+    ctx.lineTo(x+w-r,y);
+    ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+    ctx.lineTo(x+w,y+h-r);
+    ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+    ctx.lineTo(x+r,y+h);
+    ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+    ctx.lineTo(x,y+r);
+    ctx.quadraticCurveTo(x,y,x+r,y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.lineWidth=Math.max(1, size*0.045);
+    ctx.strokeStyle='rgba(97,56,14,0.35)';
+    ctx.stroke();
+    const teeth=8;
+    const amp=h*0.12;
+    ctx.beginPath();
+    for(let i=0;i<=teeth;i++){
+      const t=i/teeth;
+      const xx=x + t*w;
+      const yy=y + ((i%2===0)?0:amp);
+      if(i===0) ctx.moveTo(xx,yy); else ctx.lineTo(xx,yy);
+    }
+    ctx.lineWidth=Math.max(1, size*0.04);
+    ctx.strokeStyle='rgba(120,72,20,0.55)';
+    ctx.stroke();
+    ctx.beginPath();
+    for(let i=0;i<=teeth;i++){
+      const t=i/teeth;
+      const xx=x + t*w;
+      const yy=y + h - ((i%2===0)?0:amp);
+      if(i===0) ctx.moveTo(xx,yy); else ctx.lineTo(xx,yy);
+    }
+    ctx.stroke();
+    (p.bubbles||[]).forEach(b=>{
+      const rr=size*b.r;
+      const bx=b.x*w*0.8;
+      const by=b.y*h*0.8;
+      ctx.beginPath();
+      ctx.arc(bx,by,rr,0,TAU);
+      ctx.fillStyle=b.light
+        ? `rgba(255,255,255,${0.12+b.a})`
+        : `rgba(125,79,28,${0.12+b.a})`;
+      ctx.fill();
+    });
+    const sheen=ctx.createLinearGradient(x,y+h*0.2,x+w,y+h*0.8);
+    sheen.addColorStop(0,'rgba(255,255,255,0)');
+    sheen.addColorStop(0.5,'rgba(255,255,255,0.18)');
+    sheen.addColorStop(1,'rgba(255,255,255,0)');
+    ctx.fillStyle=sheen;
+    ctx.fillRect(x,y+h*0.25,w,h*0.5);
+  }
+  function drawPiece(p){
+    ctx.save();
+    ctx.globalAlpha=p.alpha;
+    ctx.translate(p.x,p.y);
+    ctx.rotate(p.rot);
+    if(p.kind.type==='pastel'){
+      drawPastel(p);
+    }else{
+      ctx.font=`${p.size}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
+      ctx.textAlign='center';
+      ctx.textBaseline='middle';
+      ctx.fillText(p.kind.value,0,0);
+    }
+    ctx.restore();
+  }
+  function tick(){
+    ctx.clearRect(0,0,w,h);
+    pieces.forEach(p=>{
+      p.y+=p.speed;
+      p.x+=p.drift+Math.sin((p.y+h)/120)*0.15;
+      p.rot+=p.rotSpd;
+      if(p.y-p.size>h+40){p.y=-rand(60,h*0.3);p.x=rand(0,w);p.rot=rand(0,TAU);}
+      if(p.x<-80)p.x=w+80;
+      if(p.x>w+80)p.x=-80;
+      drawPiece(p);
+    });
+    if(!reduceMotion) requestAnimationFrame(tick);
+  }
+  resize();
+  window.addEventListener('resize',resize);
+  if(reduceMotion){ctx.clearRect(0,0,w,h);pieces.forEach(drawPiece);} else {requestAnimationFrame(tick);}
+}
+
+/* start */
+renderCart();
+window.addEventListener('load',()=>document.body.classList.add('ready'));
+</script>
+</body>
+</html>
