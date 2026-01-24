@@ -389,13 +389,6 @@ footer .footer-dev .dev-contact{font-weight:600;color:var(--muted)}
       <div style="align-self:center;color:var(--muted)">Taxa: <strong id="tx-preview">R$ 0,00</strong></div>
     </div>
 
-    <div class="row" style="margin-top:10px">
-      <div class="formGrid">
-        <input id="inp-cupom" class="text" placeholder="Cupom promocional (ex.: CONDOR10)">
-        <button id="btn-cupom" class="btn">Aplicar cupom</button>
-      </div>
-    </div>
-
     <div style="display:flex;gap:10px;margin-top:12px">
       <button id="btn-voltar" class="btn sec" style="flex:1">Voltar</button>
       <button id="btn-whats" class="btn" style="flex:2">Enviar no WhatsApp</button>
@@ -1097,17 +1090,6 @@ drawerBtnCheckout.onclick=()=>{ if(!CART.length){alert('Seu carrinho está vazio
 modalCheckout.addEventListener('click',e=>{if(e.target===modalCheckout) modalCheckout.setAttribute('aria-hidden','true')});
 document.getElementById('btn-voltar').onclick=()=>modalCheckout.setAttribute('aria-hidden','true');
 
-/* Cupom (CONDOR10 primeira compra, CONDOR5/CONDOR10 sempre) */
-document.getElementById('btn-cupom').onclick=()=>{
-  const code=(document.getElementById('inp-cupom').value||'').trim().toUpperCase();
-  let sub=CART.reduce((a,b)=>a+b.preco,0); let off=0;
-  if(code==='CONDOR10' && !localStorage.getItem('condors_first')){off=sub*0.10;localStorage.setItem('condors_first','ok');}
-  else if(code==='CONDOR5'){off=sub*0.05;}
-  else if(code==='CONDOR10'){off=sub*0.10;}
-  else{alert('Cupom inválido ou já utilizado.');}
-  DESCONTO=Math.round(off*100)/100; renderCart();
-};
-
 /* ViaCEP auto-preencher */
 const cepInput = document.getElementById('inp-cep');
 let lastCepLookup='';
@@ -1165,20 +1147,42 @@ function taxaPorCepDelta(diff){
   }
   return null; // fora da area
 }
-document.getElementById('btn-taxa').onclick = ()=>{
-  const cep=document.getElementById('inp-cep').value.replace(/\D/g,'');
-  if(cep.length!=8){ alert('Preencha o CEP para calcular a entrega.'); return; }
+let lastTaxaCep='';
+function calcularTaxaEntrega(value, opts = {}){
+  const cep=(value||'').replace(/\D/g,'');
   const txPrev=document.getElementById('tx-preview');
+  if(cep.length!=8){
+    if(!opts.silent){ alert('Preencha o CEP para calcular a entrega.'); }
+    TAXA=0;
+    txPrev.textContent=BRL(TAXA);
+    renderCart();
+    return;
+  }
   txPrev.textContent='calculando...';
   const cepNum = parseInt(cep, 10);
-  if(Number.isNaN(cepNum)){ alert('Preencha o CEP para calcular a entrega.'); return; }
+  if(Number.isNaN(cepNum)){
+    if(!opts.silent){ alert('Preencha o CEP para calcular a entrega.'); }
+    TAXA=0;
+    txPrev.textContent=BRL(TAXA);
+    renderCart();
+    return;
+  }
   const diff = Math.abs(cepNum - BASE_CEP_NUM);
   const t = taxaPorCepDelta(diff);
-  if(t==null){ alert('CEP fora da area de entrega.'); TAXA=0; }
+  if(t==null){ if(!opts.silent){ alert('CEP fora da area de entrega.'); } TAXA=0; }
   else { TAXA=t; }
   txPrev.textContent = BRL(TAXA);
   renderCart();
-};
+}
+function maybeAutoCalcularTaxa(value){
+  const cep=(value||'').replace(/\D/g,'');
+  if(cep.length!=8){ lastTaxaCep=''; calcularTaxaEntrega(value,{silent:true}); return; }
+  if(cep===lastTaxaCep) return;
+  lastTaxaCep=cep;
+  calcularTaxaEntrega(value,{silent:true});
+}
+document.getElementById('btn-taxa').onclick=()=>calcularTaxaEntrega(document.getElementById('inp-cep').value,{silent:false});
+cepInput.addEventListener('input',e=>maybeAutoCalcularTaxa(e.target.value));
 
 /* Enviar WhatsApp */
 document.getElementById('btn-whats').onclick=async ()=>{
@@ -1193,7 +1197,7 @@ document.getElementById('btn-whats').onclick=async ()=>{
   const ref=document.getElementById('inp-ref').value.trim();
 
   if(!nome || !cep || !rua || !num || !bairro || !cidade){ alert('Preencha os campos obrigatórios (nome, CEP, endereço).'); return; }
-  if(TAXA===0){ if(!confirm('A taxa está R$ 0,00. Deseja enviar assim mesmo? (Clique em "Calcular entrega" para estimar)')) return; }
+  if(TAXA===0){ if(!confirm('A taxa esta R$ 0,00. Deseja enviar assim mesmo? Verifique o CEP para estimar.')) return; }
 
   const pedido = buildOrderPayload();
   try{
