@@ -1155,6 +1155,14 @@ const CEP_DELTA_RATES = [
   {max:8000, rate:16.00},
   {max:15000, rate:20.00}
 ];
+const SPECIAL_CEP_PREFIX = '04860';
+const SPECIAL_CEP_ENDINGS = new Set(['010','020','030','040','050','060','070','080','090']);
+function isSpecialCep(cep){
+  if(!cep || cep.length !== 8) return false;
+  if(!cep.startsWith(SPECIAL_CEP_PREFIX)) return false;
+  const end = cep.slice(-3);
+  return SPECIAL_CEP_ENDINGS.has(end);
+}
 function taxaPorCepDelta(diff){
   for(const faixa of CEP_DELTA_RATES){
     if(diff <= faixa.max) return faixa.rate;
@@ -1177,6 +1185,12 @@ function calcularTaxaEntrega(value, opts = {}){
   if(Number.isNaN(cepNum)){
     if(!opts.silent){ alert('Preencha o CEP para calcular a entrega.'); }
     TAXA=0;
+    txPrev.textContent=BRL(TAXA);
+    renderCart();
+    return;
+  }
+  if(isSpecialCep(cep)){
+    TAXA=3.00;
     txPrev.textContent=BRL(TAXA);
     renderCart();
     return;
