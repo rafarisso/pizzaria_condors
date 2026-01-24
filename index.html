@@ -775,7 +775,7 @@ function buildOrderPayload(){
     createdAt: new Date().toISOString(),
     customer: { nome, tel },
     address: { cep, rua, num, bairro, cidade, comp, ref },
-    items: CART.map(it=>({ nome: it.nome, preco: it.preco, det: it.det || '' })),
+    items: CART.map(it=>({ nome: it.nome, qtd: 1, preco: it.preco, det: it.det || '' })),
     totals: { subtotal, taxa: TAXA, desconto: DESCONTO, total }
   };
 }
@@ -783,13 +783,22 @@ function buildOrderPayload(){
 async function sendOrderToSheets(pedido){
   if(!SHEETS_WEBAPP_URL) return;
   try{
-    await fetch(SHEETS_WEBAPP_URL, {
+    const resp = await fetch(SHEETS_WEBAPP_URL, {
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify(pedido)
     });
+    const text = await resp.text();
+    let data = null;
+    try{ data = JSON.parse(text); }catch{}
+    if(!resp.ok || (data && data.ok === false)){
+      console.warn('Falha ao enviar pedido para Sheets.', resp.status, text);
+      throw new Error('sheets');
+    }
+    return { resp, data, text };
   }catch(err){
     console.warn('Falha ao enviar pedido para Sheets.', err);
+    throw err;
   }
 }
 
@@ -1172,7 +1181,7 @@ document.getElementById('btn-taxa').onclick = ()=>{
 };
 
 /* Enviar WhatsApp */
-document.getElementById('btn-whats').onclick=()=>{
+document.getElementById('btn-whats').onclick=async ()=>{
   const nome=document.getElementById('inp-nome').value.trim();
   const tel=document.getElementById('inp-tel').value.trim();
   const cep=document.getElementById('inp-cep').value.trim();
@@ -1187,7 +1196,13 @@ document.getElementById('btn-whats').onclick=()=>{
   if(TAXA===0){ if(!confirm('A taxa está R$ 0,00. Deseja enviar assim mesmo? (Clique em "Calcular entrega" para estimar)')) return; }
 
   const pedido = buildOrderPayload();
-  sendOrderToSheets(pedido);
+  try{
+    await sendOrderToSheets(pedido);
+    console.log('Pedido enviado ao painel:', pedido.id);
+  }catch(err){
+    alert('Não foi possível enviar ao painel de impressão. Tente novamente.');
+    return;
+  }
 
   const linhas=[];
   linhas.push(`\u{1F355} *Pedido Pizzaria Condors*`, '');

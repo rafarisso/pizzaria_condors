@@ -56,11 +56,19 @@ h1{font-family:"Fraunces",serif;font-size:26px;margin:0}
       <div id="status" class="muted">Aguardando configuração do Sheets.</div>
     </div>
     <div class="actions">
-      <label class="muted" for="filter-status">Mostrar:</label>
+      <label class="muted" for="filter-status">Status:</label>
       <select id="filter-status" class="filter">
         <option value="PENDENTE" selected>Pendentes</option>
         <option value="TODOS">Todos</option>
         <option value="IMPRESSO">Impressos</option>
+      </select>
+      <label class="muted" for="filter-period">Período:</label>
+      <select id="filter-period" class="filter">
+        <option value="HOJE" selected>Hoje</option>
+        <option value="ONTEM">Ontem</option>
+        <option value="SEMANA">Semana</option>
+        <option value="MES">Mês</option>
+        <option value="TODOS">Todos</option>
       </select>
       <button id="btn-refresh" class="btn sec" type="button">Atualizar</button>
     </div>
@@ -75,8 +83,10 @@ const BRL = v => Number(v || 0).toLocaleString('pt-BR',{style:'currency',currenc
 const ordersEl=document.getElementById('orders');
 const statusEl=document.getElementById('status');
 const filterSelect=document.getElementById('filter-status');
+const periodSelect=document.getElementById('filter-period');
 let CURRENT_ORDERS=[];
 let CURRENT_FILTER='PENDENTE';
+let CURRENT_PERIOD='HOJE';
 
 function fmtDate(value){
   if(!value) return '';
@@ -96,6 +106,15 @@ function buildAddress(o){
   return [line1,line2].filter(Boolean).join(' | ');
 }
 
+function parseOrderDate(order){
+  const d=new Date(order && order.createdAt ? order.createdAt : '');
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function isSameDay(a,b){
+  return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
+}
+
 function normalizeStatus(order){
   const raw = (order && order.status) ? String(order.status) : '';
   const upper = raw.toUpperCase();
@@ -105,9 +124,35 @@ function normalizeStatus(order){
   return 'PENDENTE';
 }
 
+function matchPeriod(order){
+  if(CURRENT_PERIOD === 'TODOS') return true;
+  const d=parseOrderDate(order);
+  if(!d) return false;
+  const now=new Date();
+  if(CURRENT_PERIOD === 'HOJE') return isSameDay(d, now);
+  if(CURRENT_PERIOD === 'ONTEM'){
+    const y=new Date(now);
+    y.setDate(now.getDate()-1);
+    return isSameDay(d, y);
+  }
+  if(CURRENT_PERIOD === 'SEMANA'){
+    const start=new Date(now);
+    start.setHours(0,0,0,0);
+    start.setDate(start.getDate()-6);
+    return d >= start;
+  }
+  if(CURRENT_PERIOD === 'MES'){
+    return d.getFullYear()===now.getFullYear() && d.getMonth()===now.getMonth();
+  }
+  return true;
+}
+
 function applyFilter(list){
-  if(CURRENT_FILTER === 'TODOS') return list;
-  return list.filter(o=>normalizeStatus(o) === CURRENT_FILTER);
+  return list.filter(o=>{
+    const statusOk = CURRENT_FILTER === 'TODOS' || normalizeStatus(o) === CURRENT_FILTER;
+    const periodOk = matchPeriod(o);
+    return statusOk && periodOk;
+  });
 }
 
 function renderOrders(list){
@@ -126,6 +171,7 @@ function renderOrders(list){
     const items=order.items || [];
     const orderId = order.id || 'Pedido';
     const status = normalizeStatus(order);
+    const printLabel = status === 'IMPRESSO' ? 'Imprimir novamente' : 'Imprimir';
     card.innerHTML=`
       <div class="row">
         <strong>Pedido: ${orderId}</strong>
@@ -155,7 +201,7 @@ function renderOrders(list){
         <span>Total</span><strong>${BRL(totals.total)}</strong>
       </div>
       <div class="actions">
-        <button class="btn" data-print="${order.id}">Imprimir</button>
+        <button class="btn" data-print="${order.id}">${printLabel}</button>
       </div>
     `;
     ordersEl.appendChild(card);
@@ -261,9 +307,15 @@ if(filterSelect){
     renderOrders(CURRENT_ORDERS);
   });
 }
+if(periodSelect){
+  periodSelect.addEventListener('change',()=>{
+    CURRENT_PERIOD = periodSelect.value;
+    renderOrders(CURRENT_ORDERS);
+  });
+}
 
 fetchOrders();
-setInterval(fetchOrders, 120000);
+setInterval(fetchOrders, 30000);
 </script>
 </body>
 </html>
