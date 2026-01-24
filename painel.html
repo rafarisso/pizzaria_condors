@@ -26,6 +26,7 @@ h1{font-family:"Fraunces",serif;font-size:26px;margin:0}
   background:var(--accent);font-weight:700;border-radius:10px;
   padding:10px 14px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;
 }
+.btn[disabled]{opacity:.55;cursor:not-allowed}
 .btn.sec{background:rgba(255,255,255,.1);color:#f0f0f0}
 .list{display:grid;gap:12px;margin-top:16px}
 .card{
@@ -46,6 +47,30 @@ h1{font-family:"Fraunces",serif;font-size:26px;margin:0}
   padding:16px;border:1px dashed rgba(255,255,255,.2);
   border-radius:12px;text-align:center;color:var(--muted)
 }
+.section{margin-top:26px}
+.section h2{font-family:"Fraunces",serif;font-size:22px;margin:0 0 6px}
+.text{
+  width:100%;
+  background:var(--soft);color:var(--text);
+  border:1px solid rgba(255,255,255,.12);
+  padding:10px 12px;border-radius:10px;font-size:14px;
+}
+.formGrid{display:grid;gap:10px}
+.formGrid .span-2{grid-column:span 2}
+@media (min-width:720px){ .formGrid{grid-template-columns:repeat(2,1fr)} }
+.client-list{display:grid;gap:10px;margin-top:12px}
+.client-meta{display:flex;gap:10px;flex-wrap:wrap;color:var(--muted);font-size:13px}
+.modal{
+  position:fixed;inset:0;display:none;place-items:center;z-index:90;
+  background:rgba(0,0,0,.6);padding:16px;
+}
+.modal[aria-hidden="false"]{display:grid}
+.sheet{
+  width:min(960px,96vw);max-height:88vh;overflow:auto;
+  background:var(--card);border:1px solid rgba(255,255,255,.12);
+  border-radius:14px;padding:16px;
+}
+.sheet .title{font-weight:700;font-size:18px}
 </style>
 </head>
 <body>
@@ -61,6 +86,7 @@ h1{font-family:"Fraunces",serif;font-size:26px;margin:0}
         <option value="PENDENTE" selected>Pendentes</option>
         <option value="TODOS">Todos</option>
         <option value="IMPRESSO">Impressos</option>
+        <option value="CONCLUIDO">Concluídos</option>
       </select>
       <label class="muted" for="filter-period">Período:</label>
       <select id="filter-period" class="filter">
@@ -71,30 +97,335 @@ h1{font-family:"Fraunces",serif;font-size:26px;margin:0}
         <option value="TODOS">Todos</option>
       </select>
       <button id="btn-refresh" class="btn sec" type="button">Atualizar</button>
+      <button id="btn-open-concluidos" class="btn sec" type="button">Concluídos</button>
+      <button id="btn-clear-orders" class="btn sec" type="button">Apagar pedidos</button>
       <a class="btn sec" href="index.html?atendente=1" target="_blank" rel="noopener">Novo pedido</a>
     </div>
   </div>
 
   <div id="orders" class="list"></div>
+
+  <section class="section" id="clientes">
+    <div class="top">
+      <div>
+        <h2>Clientes cadastrados</h2>
+        <div class="muted">Salve clientes para preencher pedidos por telefone ou balcão.</div>
+      </div>
+      <div class="actions">
+        <input id="client-search" class="text" placeholder="Buscar por nome ou telefone">
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="formGrid" style="margin-top:6px">
+        <input id="cli-nome" class="text" placeholder="Nome completo*">
+        <input id="cli-tel" class="text" placeholder="Telefone*">
+        <input id="cli-cep" class="text" placeholder="CEP*">
+        <input id="cli-rua" class="text span-2" placeholder="Rua / Avenida*">
+        <input id="cli-num" class="text" placeholder="Número*">
+        <input id="cli-bairro" class="text" placeholder="Bairro*">
+        <input id="cli-cidade" class="text span-2" placeholder="Cidade*">
+        <input id="cli-comp" class="text" placeholder="Complemento">
+        <input id="cli-ref" class="text" placeholder="Referência">
+      </div>
+      <div class="actions" style="margin-top:10px">
+        <button id="btn-client-save" class="btn" type="button">Salvar cliente</button>
+        <button id="btn-client-clear" class="btn sec" type="button">Limpar</button>
+      </div>
+    </div>
+
+    <div id="client-list" class="client-list"></div>
+  </section>
 </div>
+
+<aside id="modal-concluidos" class="modal" aria-hidden="true">
+  <div class="sheet">
+    <div class="row" style="align-items:center">
+      <div class="title">Pedidos concluídos</div>
+      <button id="btn-close-concluidos" class="btn sec" type="button">Fechar</button>
+    </div>
+    <div id="completed-list" class="list"></div>
+  </div>
+</aside>
 
 <script>
 const SHEETS_WEBAPP_URL = '/.netlify/functions/sheets-get';
+const CLIENTS_ENDPOINT = '/.netlify/functions/sheets-clients';
+const CLEAR_ORDERS_ENDPOINT = '/.netlify/functions/sheets-orders-clear';
+const STATUS_ENDPOINT = '/.netlify/functions/sheets-update-status';
 const BRL = v => Number(v || 0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 const COMANDA_PAD = 5;
+const PRINT_STYLE_ID = 'v2';
+const PRINT_STYLES = {
+  v1: `
+    @page{size:80mm auto;margin:3mm;}
+    @media print{body{width:80mm;}}
+    body{
+      font-family:"Consolas","Lucida Console","Courier New",monospace;
+      color:#000;width:80mm;margin:0;font-size:18px;line-height:1.3;font-weight:700;
+    }
+    .logo{display:flex;justify-content:center;margin:0 0 6px;}
+    .logo img{width:60mm;max-width:100%;height:auto;}
+    .center{text-align:center;}
+    .title{font-size:20px;font-weight:700;letter-spacing:1px;margin:0;}
+    .comanda-num{font-size:24px;font-weight:700;letter-spacing:2px;margin-top:2px;}
+    .muted{color:#000;}
+    .sep{border-top:2px dashed #000;margin:8px 0;}
+    .row{display:flex;justify-content:space-between;gap:8px;}
+    .section-title{font-size:18px;font-weight:700;letter-spacing:1px;text-align:center;margin:4px 0;}
+    .items{margin:6px 0;display:grid;gap:6px;}
+    .item{display:flex;justify-content:space-between;gap:8px;}
+    .item-left{flex:1;}
+    .item-name{font-weight:700;font-size:18px;}
+    .item-price{font-size:18px;}
+    .item-det{margin-top:2px;font-size:16px;font-weight:700;line-height:1.2;}
+    .totals{display:grid;gap:4px;}
+    .total{font-size:22px;font-weight:700;margin-top:4px;}
+    .thanks{text-align:center;margin-top:10px;font-weight:700;font-size:17px;}
+  `,
+  v2: `
+    @page{size:80mm auto;margin:2.5mm;}
+    @media print{body{width:80mm;}}
+    body{
+      font-family:"Arial Black","Arial","Tahoma",sans-serif;
+      color:#000;width:80mm;margin:0;font-size:20px;line-height:1.2;font-weight:800;
+    }
+    .logo{display:flex;justify-content:center;margin:0 0 6px;}
+    .logo img{width:62mm;max-width:100%;height:auto;filter:grayscale(100%) contrast(180%);image-rendering:crisp-edges;}
+    .center{text-align:center;}
+    .title{font-size:22px;font-weight:800;letter-spacing:1px;margin:0;}
+    .comanda-num{font-size:26px;font-weight:800;letter-spacing:2px;margin-top:2px;}
+    .muted{color:#000;}
+    .sep{border-top:2px dashed #000;margin:8px 0;}
+    .row{display:flex;justify-content:space-between;gap:8px;}
+    .section-title{font-size:19px;font-weight:800;letter-spacing:1px;text-align:center;margin:4px 0;}
+    .items{margin:6px 0;display:grid;gap:6px;}
+    .item{display:flex;justify-content:space-between;gap:8px;}
+    .item-left{flex:1;}
+    .item-name{font-weight:800;font-size:20px;}
+    .item-price{font-size:20px;}
+    .item-det{margin-top:2px;font-size:18px;font-weight:800;line-height:1.2;}
+    .totals{display:grid;gap:4px;}
+    .total{font-size:24px;font-weight:800;margin-top:4px;}
+    .thanks{text-align:center;margin-top:10px;font-weight:800;font-size:18px;}
+  `
+};
 const ordersEl=document.getElementById('orders');
 const statusEl=document.getElementById('status');
 const filterSelect=document.getElementById('filter-status');
 const periodSelect=document.getElementById('filter-period');
+const CLIENT_STORE_KEY = 'condor_clients_v1';
+const HIDDEN_ORDERS_KEY = 'condor_hidden_orders_v1';
+const ORDER_STATUS_KEY = 'condor_order_status_v1';
 let CURRENT_ORDERS=[];
 let CURRENT_FILTER='PENDENTE';
 let CURRENT_PERIOD='HOJE';
+let isFetching=false;
+let pollTimer=null;
+const POLL_VISIBLE_MS=15000;
+const POLL_HIDDEN_MS=60000;
 
 function fmtDate(value){
   if(!value) return '';
   const d=new Date(value);
   if(Number.isNaN(d.getTime())) return value;
   return d.toLocaleString('pt-BR');
+}
+
+function normalizePhone(value){
+  return String(value || '').replace(/\D/g,'');
+}
+
+function formatPhone(value){
+  const digits=normalizePhone(value);
+  if(digits.length===11){
+    return `(${digits.slice(0,2)}) ${digits.slice(2,7)}-${digits.slice(7)}`;
+  }
+  if(digits.length===10){
+    return `(${digits.slice(0,2)}) ${digits.slice(2,6)}-${digits.slice(6)}`;
+  }
+  return digits || value || '';
+}
+
+function loadClients(){
+  try{
+    const raw=localStorage.getItem(CLIENT_STORE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  }catch{
+    return [];
+  }
+}
+
+function saveClients(list){
+  try{
+    localStorage.setItem(CLIENT_STORE_KEY, JSON.stringify(list || []));
+  }catch{
+    // ignore
+  }
+}
+
+function loadHiddenOrders(){
+  try{
+    const raw=localStorage.getItem(HIDDEN_ORDERS_KEY);
+    return raw ? JSON.parse(raw) : [];
+  }catch{
+    return [];
+  }
+}
+
+function saveHiddenOrders(list){
+  try{
+    localStorage.setItem(HIDDEN_ORDERS_KEY, JSON.stringify(list || []));
+  }catch{
+    // ignore
+  }
+}
+
+function loadOrderStatus(){
+  try{
+    const raw=localStorage.getItem(ORDER_STATUS_KEY);
+    return raw ? JSON.parse(raw) : {};
+  }catch{
+    return {};
+  }
+}
+
+function saveOrderStatus(map){
+  try{
+    localStorage.setItem(ORDER_STATUS_KEY, JSON.stringify(map || {}));
+  }catch{
+    // ignore
+  }
+}
+
+async function fetchClientsRemote(){
+  if(!CLIENTS_ENDPOINT) return null;
+  try{
+    const sep = CLIENTS_ENDPOINT.includes('?') ? '&' : '?';
+    const url = `${CLIENTS_ENDPOINT}${sep}t=${Date.now()}`;
+    const resp = await fetch(url, {cache:'no-store'});
+    const text = await resp.text();
+    let data = null;
+    try{ data = JSON.parse(text); }catch{}
+    if(!resp.ok || (data && data.ok === false)) return null;
+    if(!data || !Array.isArray(data.clients)) return null;
+    return data.clients;
+  }catch{
+    return null;
+  }
+}
+
+async function syncClientsRemote(force=false){
+  if(CLIENTS_DIRTY && !force) return;
+  const remote = await fetchClientsRemote();
+  if(!remote) return;
+  CLIENTS = remote.map(c=>({
+    ...c,
+    tel: normalizePhone(c.tel)
+  }));
+  saveClients(CLIENTS);
+  CLIENTS_DIRTY = false;
+  renderClientList();
+}
+
+async function upsertClientRemote(client){
+  if(!CLIENTS_ENDPOINT) return false;
+  try{
+    const resp = await fetch(CLIENTS_ENDPOINT, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ action:'upsertClient', client })
+    });
+    const text = await resp.text();
+    let data = null;
+    try{ data = JSON.parse(text); }catch{}
+    if(!resp.ok || (data && data.ok === false)) return false;
+    if(data && Array.isArray(data.clients)){
+      CLIENTS = data.clients.map(c=>({ ...c, tel: normalizePhone(c.tel) }));
+      saveClients(CLIENTS);
+      CLIENTS_DIRTY = false;
+      renderClientList();
+    }
+    return true;
+  }catch{
+    return false;
+  }
+}
+
+async function deleteClientRemote(tel){
+  if(!CLIENTS_ENDPOINT) return false;
+  try{
+    const resp = await fetch(CLIENTS_ENDPOINT, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ action:'deleteClient', tel })
+    });
+    const text = await resp.text();
+    let data = null;
+    try{ data = JSON.parse(text); }catch{}
+    if(!resp.ok || (data && data.ok === false)) return false;
+    if(data && Array.isArray(data.clients)){
+      CLIENTS = data.clients.map(c=>({ ...c, tel: normalizePhone(c.tel) }));
+      saveClients(CLIENTS);
+      CLIENTS_DIRTY = false;
+      renderClientList();
+    }
+    return true;
+  }catch{
+    return false;
+  }
+}
+
+async function clearOrdersRemote(ids){
+  if(!CLEAR_ORDERS_ENDPOINT) return false;
+  try{
+    const resp = await fetch(CLEAR_ORDERS_ENDPOINT, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ ids })
+    });
+    const text = await resp.text();
+    let data = null;
+    try{ data = JSON.parse(text); }catch{}
+    if(!resp.ok || (data && data.ok === false)) return false;
+    return true;
+  }catch{
+    return false;
+  }
+}
+
+async function updateOrderStatusRemote(id, status){
+  if(!STATUS_ENDPOINT) return false;
+  if(!id || !status) return false;
+  try{
+    const resp = await fetch(STATUS_ENDPOINT, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ id, status })
+    });
+    const text = await resp.text();
+    let data = null;
+    try{ data = JSON.parse(text); }catch{}
+    if(!resp.ok || (data && data.ok === false)) return false;
+    return true;
+  }catch{
+    return false;
+  }
+}
+
+let CLIENTS = loadClients();
+const hiddenOrderIds = new Set(loadHiddenOrders());
+let ORDER_STATUS = loadOrderStatus();
+let CLIENTS_DIRTY = false;
+
+function setOrderStatus(orderId, status){
+  if(!orderId) return;
+  if(status){
+    ORDER_STATUS[orderId] = status;
+  }else{
+    delete ORDER_STATUS[orderId];
+  }
+  saveOrderStatus(ORDER_STATUS);
 }
 
 function buildAddress(o){
@@ -166,12 +497,22 @@ function isSameDay(a,b){
 }
 
 function normalizeStatus(order){
-  const raw = (order && order.status) ? String(order.status) : '';
+  const id = order && order.id ? String(order.id) : '';
+  const local = id && ORDER_STATUS[id] ? String(ORDER_STATUS[id]) : '';
+  const raw = local || ((order && order.status) ? String(order.status) : '');
   const upper = raw.toUpperCase();
+  if(upper === 'CONCLUIDO') return 'CONCLUIDO';
   if(upper === 'IMPRESSO') return 'IMPRESSO';
   if(upper === 'PENDENTE') return 'PENDENTE';
   if(order && (order.impresso_em || order.impresso)) return 'IMPRESSO';
   return 'PENDENTE';
+}
+
+function statusLabel(status){
+  if(status === 'CONCLUIDO') return 'Concluído';
+  if(status === 'IMPRESSO') return 'Impresso';
+  if(status === 'PENDENTE') return 'Pendente';
+  return status || '';
 }
 
 function matchPeriod(order){
@@ -201,7 +542,152 @@ function applyFilter(list){
   return list.filter(o=>{
     const statusOk = CURRENT_FILTER === 'TODOS' || normalizeStatus(o) === CURRENT_FILTER;
     const periodOk = matchPeriod(o);
-    return statusOk && periodOk;
+    const hiddenOk = !o.id || !hiddenOrderIds.has(o.id);
+    return statusOk && periodOk && hiddenOk;
+  });
+}
+
+function buildClientAddress(c){
+  const parts=[];
+  if(c.rua) parts.push(c.rua);
+  if(c.num) parts.push(c.num);
+  if(c.comp) parts.push(c.comp);
+  const line1=parts.join(', ');
+  const line2=[c.bairro,c.cidade].filter(Boolean).join(' - ');
+  const line3=c.cep ? `CEP ${c.cep}` : '';
+  return [line1,line2,line3].filter(Boolean).join(' | ');
+}
+
+const clientListEl=document.getElementById('client-list');
+const clientSearchEl=document.getElementById('client-search');
+const clientNomeEl=document.getElementById('cli-nome');
+const clientTelEl=document.getElementById('cli-tel');
+const clientCepEl=document.getElementById('cli-cep');
+const clientRuaEl=document.getElementById('cli-rua');
+const clientNumEl=document.getElementById('cli-num');
+const clientBairroEl=document.getElementById('cli-bairro');
+const clientCidadeEl=document.getElementById('cli-cidade');
+const clientCompEl=document.getElementById('cli-comp');
+const clientRefEl=document.getElementById('cli-ref');
+const clientSaveBtn=document.getElementById('btn-client-save');
+const clientClearBtn=document.getElementById('btn-client-clear');
+let editingClientTel='';
+
+function getClientFormData(){
+  return {
+    nome: clientNomeEl ? clientNomeEl.value.trim() : '',
+    tel: normalizePhone(clientTelEl ? clientTelEl.value : ''),
+    cep: (clientCepEl ? clientCepEl.value : '').trim(),
+    rua: (clientRuaEl ? clientRuaEl.value : '').trim(),
+    num: (clientNumEl ? clientNumEl.value : '').trim(),
+    bairro: (clientBairroEl ? clientBairroEl.value : '').trim(),
+    cidade: (clientCidadeEl ? clientCidadeEl.value : '').trim(),
+    comp: (clientCompEl ? clientCompEl.value : '').trim(),
+    ref: (clientRefEl ? clientRefEl.value : '').trim()
+  };
+}
+
+function fillClientForm(client){
+  if(!client) return;
+  if(clientNomeEl) clientNomeEl.value = client.nome || '';
+  if(clientTelEl) clientTelEl.value = client.tel || '';
+  if(clientCepEl) clientCepEl.value = client.cep || '';
+  if(clientRuaEl) clientRuaEl.value = client.rua || '';
+  if(clientNumEl) clientNumEl.value = client.num || '';
+  if(clientBairroEl) clientBairroEl.value = client.bairro || '';
+  if(clientCidadeEl) clientCidadeEl.value = client.cidade || '';
+  if(clientCompEl) clientCompEl.value = client.comp || '';
+  if(clientRefEl) clientRefEl.value = client.ref || '';
+  editingClientTel = client.tel || '';
+}
+
+function clearClientForm(){
+  if(clientNomeEl) clientNomeEl.value='';
+  if(clientTelEl) clientTelEl.value='';
+  if(clientCepEl) clientCepEl.value='';
+  if(clientRuaEl) clientRuaEl.value='';
+  if(clientNumEl) clientNumEl.value='';
+  if(clientBairroEl) clientBairroEl.value='';
+  if(clientCidadeEl) clientCidadeEl.value='';
+  if(clientCompEl) clientCompEl.value='';
+  if(clientRefEl) clientRefEl.value='';
+  editingClientTel='';
+}
+
+function renderClientList(){
+  if(!clientListEl) return;
+  clientListEl.innerHTML='';
+  const term = (clientSearchEl ? clientSearchEl.value : '').trim().toLowerCase();
+  const list = CLIENTS.filter(c=>{
+    if(!term) return true;
+    const target = `${c.nome || ''} ${c.tel || ''}`.toLowerCase();
+    return target.includes(term);
+  });
+  if(!list.length){
+    const empty=document.createElement('div');
+    empty.className='empty';
+    empty.textContent=CLIENTS.length ? 'Nenhum cliente encontrado.' : 'Nenhum cliente cadastrado.';
+    clientListEl.appendChild(empty);
+    return;
+  }
+  list.forEach(client=>{
+    const card=document.createElement('div');
+    card.className='card';
+    const row=document.createElement('div');
+    row.className='row';
+    const name=document.createElement('strong');
+    name.textContent=client.nome || 'Cliente';
+    const phone=document.createElement('span');
+    phone.className='tag';
+    phone.textContent=formatPhone(client.tel);
+    row.appendChild(name);
+    row.appendChild(phone);
+
+    const meta=document.createElement('div');
+    meta.className='client-meta';
+    meta.textContent=buildClientAddress(client) || 'Endereço não informado.';
+
+    const actions=document.createElement('div');
+    actions.className='actions';
+    const btnEdit=document.createElement('button');
+    btnEdit.className='btn sec';
+    btnEdit.type='button';
+    btnEdit.textContent='Editar';
+    btnEdit.onclick=()=>fillClientForm(client);
+
+    const btnAttend=document.createElement('a');
+    btnAttend.className='btn sec';
+    btnAttend.href=`index.html?atendente=1&tel=${encodeURIComponent(client.tel)}`;
+    btnAttend.target='_blank';
+    btnAttend.rel='noopener';
+    btnAttend.textContent='Atender';
+
+    const btnDelete=document.createElement('button');
+    btnDelete.className='btn sec';
+    btnDelete.type='button';
+    btnDelete.textContent='Excluir';
+    btnDelete.onclick=async ()=>{
+      if(!confirm('Excluir este cliente?')) return;
+      CLIENTS = CLIENTS.filter(c=>c.tel !== client.tel);
+      saveClients(CLIENTS);
+      renderClientList();
+      if(editingClientTel === client.tel) clearClientForm();
+
+      const synced = await deleteClientRemote(client.tel);
+      if(!synced){
+        CLIENTS_DIRTY = true;
+        alert('Cliente removido localmente, mas não foi possível sincronizar.');
+      }
+    };
+
+    actions.appendChild(btnEdit);
+    actions.appendChild(btnAttend);
+    actions.appendChild(btnDelete);
+
+    card.appendChild(row);
+    card.appendChild(meta);
+    card.appendChild(actions);
+    clientListEl.appendChild(card);
   });
 }
 
@@ -212,6 +698,7 @@ function renderOrders(list){
   const visible = applyFilter(CURRENT_ORDERS);
   if(!visible.length){
     ordersEl.innerHTML='<div class="empty">Nenhum pedido encontrado.</div>';
+    renderCompletedList();
     return;
   }
   visible.forEach(order=>{
@@ -222,11 +709,15 @@ function renderOrders(list){
     const items=order.items || [];
     const orderId = order.id || 'Pedido';
     const status = normalizeStatus(order);
+    const statusText = statusLabel(status);
     const printLabel = status === 'IMPRESSO' ? 'Imprimir novamente' : 'Imprimir';
+    const statusClass = status.toLowerCase();
+    const completeLabel = status === 'CONCLUIDO' ? 'Concluído' : 'Concluir';
+    const completeDisabled = status === 'CONCLUIDO' ? 'disabled' : '';
     card.innerHTML=`
       <div class="row">
         <strong>${comandaLabel(order)}</strong>
-        <span class="tag">${status}</span>
+        <span class="tag status-${statusClass}">${statusText}</span>
       </div>
       <div class="row">
         <span class="muted">Pedido: ${orderId}</span>
@@ -254,9 +745,59 @@ function renderOrders(list){
       </div>
       <div class="actions">
         <button class="btn" data-print="${order.id}">${printLabel}</button>
+        <button class="btn sec" data-complete="${order.id}" ${completeDisabled}>${completeLabel}</button>
       </div>
     `;
     ordersEl.appendChild(card);
+  });
+  renderCompletedList();
+}
+
+const completedModal=document.getElementById('modal-concluidos');
+const completedList=document.getElementById('completed-list');
+const completedOpenBtn=document.getElementById('btn-open-concluidos');
+const completedCloseBtn=document.getElementById('btn-close-concluidos');
+
+function renderCompletedList(){
+  if(!completedList) return;
+  completedList.innerHTML='';
+  const list = CURRENT_ORDERS.filter(o=>{
+    const status = normalizeStatus(o);
+    const hiddenOk = !o.id || !hiddenOrderIds.has(o.id);
+    return status === 'CONCLUIDO' && hiddenOk;
+  });
+  if(!list.length){
+    completedList.innerHTML='<div class="empty">Nenhum pedido concluído.</div>';
+    return;
+  }
+  list.forEach(order=>{
+    const card=document.createElement('div');
+    card.className='card';
+    const customer=order.customer || {};
+    const totals=order.totals || {};
+    const items=order.items || [];
+    const orderId = order.id || 'Pedido';
+    card.innerHTML=`
+      <div class="row">
+        <strong>${comandaLabel(order)}</strong>
+        <span class="tag">Concluído</span>
+      </div>
+      <div class="row">
+        <span class="muted">Pedido: ${orderId}</span>
+        <span class="muted">${fmtDate(order.createdAt)}</span>
+      </div>
+      <div class="row">
+        <span>${customer.nome || 'Cliente'}</span>
+        <span class="muted">${customer.tel || ''}</span>
+      </div>
+      <div class="items">
+        ${items.map(it=>`<div class="item"><span>${it.nome}${it.det?`<div class="muted">${it.det}</div>`:''}</span><strong>${BRL(it.preco)}</strong></div>`).join('')}
+      </div>
+      <div class="row">
+        <span>Total</span><strong>${BRL(totals.total)}</strong>
+      </div>
+    `;
+    completedList.appendChild(card);
   });
 }
 
@@ -283,37 +824,16 @@ function printOrder(order){
       <div class="item-price">${BRL(it.preco)}</div>
     </div>`;
   }).join('');
+  const styleText = PRINT_STYLES[PRINT_STYLE_ID] || PRINT_STYLES.v1;
+  const logoDefaultUrl = new URL('images/logo.png', window.location.href).href;
+  const logoBwUrl = new URL('images/logo-bw.png', window.location.href).href;
+  const logoHtml = `<div class="logo"><img src="${logoBwUrl}" alt="Condor Pizzaria" onerror="this.onerror=null;this.src='${logoDefaultUrl}';"></div>`;
   const w=window.open('', '_blank', 'width=420,height=700');
   if(!w) return;
   w.document.write(`<!doctype html><html><head><meta charset="utf-8">
   <title>Pedido</title>
-  <style>
-    @page{size:80mm auto;margin:3mm;}
-    @media print{body{width:80mm;}}
-    body{
-      font-family:"Consolas","Lucida Console","Courier New",monospace;
-      color:#000;width:80mm;margin:0;font-size:18px;line-height:1.3;font-weight:700;
-    }
-    .logo{display:flex;justify-content:center;margin:0 0 6px;}
-    .logo img{width:60mm;max-width:100%;height:auto;}
-    .center{text-align:center;}
-    .title{font-size:20px;font-weight:700;letter-spacing:1px;margin:0;}
-    .comanda-num{font-size:24px;font-weight:700;letter-spacing:2px;margin-top:2px;}
-    .muted{color:#000;}
-    .sep{border-top:2px dashed #000;margin:8px 0;}
-    .row{display:flex;justify-content:space-between;gap:8px;}
-    .section-title{font-size:18px;font-weight:700;letter-spacing:1px;text-align:center;margin:4px 0;}
-    .items{margin:6px 0;display:grid;gap:6px;}
-    .item{display:flex;justify-content:space-between;gap:8px;}
-    .item-left{flex:1;}
-    .item-name{font-weight:700;font-size:18px;}
-    .item-price{font-size:18px;}
-    .item-det{margin-top:2px;font-size:16px;font-weight:700;line-height:1.2;}
-    .totals{display:grid;gap:4px;}
-    .total{font-size:22px;font-weight:700;margin-top:4px;}
-    .thanks{text-align:center;margin-top:10px;font-weight:700;font-size:17px;}
-  </style></head><body>
-  <div class="logo"><img src="images/logo.png" alt="Condors Pizzaria"></div>
+  <style>${styleText}</style></head><body>
+  ${logoHtml}
   <div class="center title">COMANDA</div>
   <div class="center comanda-num">${comandaNumber ? `#${comandaNumber}` : ''}</div>
   <div class="center muted">${fmtDate(order.createdAt)}</div>
@@ -335,7 +855,7 @@ function printOrder(order){
   <div class="sep"></div>
   <div class="row total"><span>Total</span><span>${BRL(totals.total)}</span></div>
   <div class="sep"></div>
-  <div class="thanks">A Condors Pizzaria agradece a preferencia</div>
+  <div class="thanks">A Condor Pizzaria agradece a preferencia</div>
   </body></html>`);
   w.document.close();
   w.focus();
@@ -362,9 +882,13 @@ async function fetchOrders(){
     renderOrders([]);
     return;
   }
+  if(isFetching) return;
+  isFetching=true;
   statusEl.textContent='Carregando...';
   try{
-    const r=await fetch(SHEETS_WEBAPP_URL, {cache:'no-store'});
+    const sep = SHEETS_WEBAPP_URL.includes('?') ? '&' : '?';
+    const url = `${SHEETS_WEBAPP_URL}${sep}t=${Date.now()}`;
+    const r=await fetch(url, {cache:'no-store'});
     const data=await r.json();
     const orders=(data.orders || []).slice().sort((a,b)=>{
       const ta=new Date(a.createdAt || 0).getTime();
@@ -377,11 +901,27 @@ async function fetchOrders(){
     statusEl.textContent = `Última atualização: ${time}`;
   }catch{
     statusEl.textContent='Erro ao carregar pedidos.';
+  }finally{
+    isFetching=false;
   }
 }
 
 document.getElementById('btn-refresh').onclick=fetchOrders;
 ordersEl.addEventListener('click',ev=>{
+  const completeBtn=ev.target.closest('[data-complete]');
+  if(completeBtn){
+    const id=completeBtn.dataset.complete;
+    if(!id) return;
+    if(!confirm('Marcar este pedido como concluído?')) return;
+    setOrderStatus(id, 'CONCLUIDO');
+    renderOrders(CURRENT_ORDERS);
+    updateOrderStatusRemote(id, 'CONCLUIDO').then((ok)=>{
+      if(!ok){
+        alert('Pedido concluído localmente, mas não foi possível sincronizar.');
+      }
+    });
+    return;
+  }
   const btn=ev.target.closest('[data-print]');
   if(!btn) return;
   const id=btn.dataset.print;
@@ -407,8 +947,110 @@ if(periodSelect){
   });
 }
 
+if(completedOpenBtn && completedModal){
+  completedOpenBtn.onclick=()=>{
+    renderCompletedList();
+    completedModal.setAttribute('aria-hidden','false');
+  };
+}
+if(completedCloseBtn && completedModal){
+  completedCloseBtn.onclick=()=>completedModal.setAttribute('aria-hidden','true');
+}
+if(completedModal){
+  completedModal.addEventListener('click',e=>{
+    if(e.target===completedModal) completedModal.setAttribute('aria-hidden','true');
+  });
+}
+
+if(clientSearchEl){
+  clientSearchEl.addEventListener('input', renderClientList);
+}
+if(clientTelEl){
+  clientTelEl.addEventListener('blur', ()=>{
+    const tel=normalizePhone(clientTelEl.value);
+    if(!tel) return;
+    const existing=CLIENTS.find(c=>c.tel===tel);
+    if(existing) fillClientForm(existing);
+  });
+}
+if(clientSaveBtn){
+  clientSaveBtn.onclick=async ()=>{
+    const data=getClientFormData();
+    if(!data.nome || !data.tel || !data.cep || !data.rua || !data.num || !data.bairro || !data.cidade){
+      alert('Preencha os campos obrigatórios do cliente.');
+      return;
+    }
+    if(editingClientTel && editingClientTel !== data.tel){
+      CLIENTS = CLIENTS.filter(c=>c.tel !== editingClientTel);
+    }
+    const idx=CLIENTS.findIndex(c=>c.tel===data.tel);
+    const record={...data, updatedAt:new Date().toISOString()};
+    if(idx>=0){ CLIENTS[idx]=record; }
+    else { CLIENTS.unshift(record); }
+    saveClients(CLIENTS);
+    renderClientList();
+    editingClientTel=data.tel;
+
+    const synced = await upsertClientRemote(record);
+    if(!synced){
+      CLIENTS_DIRTY = true;
+      alert('Cliente salvo localmente, mas não foi possível sincronizar.');
+      return;
+    }
+    alert('Cliente salvo.');
+  };
+}
+if(clientClearBtn){
+  clientClearBtn.onclick=()=>{
+    clearClientForm();
+  };
+}
+
+const btnClearOrders=document.getElementById('btn-clear-orders');
+if(btnClearOrders){
+  btnClearOrders.onclick=async ()=>{
+    const visible=applyFilter(CURRENT_ORDERS).filter(o=>o.id);
+    if(!visible.length){
+      alert('Nenhum pedido para apagar.');
+      return;
+    }
+    if(!confirm('Apagar os pedidos visíveis do painel? Essa ação remove do sistema.')) return;
+    const ids=visible.map(o=>o.id);
+    const synced = await clearOrdersRemote(ids);
+    if(synced){
+      ids.forEach(id=>hiddenOrderIds.delete(id));
+      saveHiddenOrders([...hiddenOrderIds]);
+      await fetchOrders();
+      alert('Pedidos apagados.');
+      return;
+    }
+    visible.forEach(o=>hiddenOrderIds.add(o.id));
+    saveHiddenOrders([...hiddenOrderIds]);
+    renderOrders(CURRENT_ORDERS);
+    alert('Não foi possível apagar no painel remoto. Pedidos ocultados apenas neste dispositivo.');
+  };
+}
+
+function schedulePoll(delay){
+  clearTimeout(pollTimer);
+  pollTimer=setTimeout(async ()=>{
+    await fetchOrders();
+    schedulePoll(document.hidden ? POLL_HIDDEN_MS : POLL_VISIBLE_MS);
+  }, delay);
+}
+
 fetchOrders();
-setInterval(fetchOrders, 30000);
+renderClientList();
+syncClientsRemote();
+schedulePoll(POLL_VISIBLE_MS);
+document.addEventListener('visibilitychange', ()=>{
+  if(!document.hidden) fetchOrders();
+  schedulePoll(document.hidden ? POLL_HIDDEN_MS : POLL_VISIBLE_MS);
+});
+window.addEventListener('focus', ()=>{
+  fetchOrders();
+  schedulePoll(POLL_VISIBLE_MS);
+});
 </script>
 </body>
 </html>

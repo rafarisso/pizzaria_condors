@@ -432,6 +432,62 @@ const attendantPill = document.getElementById('attendant-pill');
 if(attendantPill) attendantPill.classList.toggle('hidden', !IS_ATTENDANT);
 const btnRegistrar = document.getElementById('btn-registrar');
 if(btnRegistrar) btnRegistrar.classList.toggle('hidden', !IS_ATTENDANT);
+const CLIENTS_ENDPOINT = '/.netlify/functions/sheets-clients';
+const CLIENT_STORE_KEY = 'condor_clients_v1';
+const normalizePhone = value => String(value || '').replace(/\D/g,'');
+const loadClients = () => {
+  try{
+    const raw=localStorage.getItem(CLIENT_STORE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  }catch{
+    return [];
+  }
+};
+const findClientByPhone = phone => {
+  const tel = normalizePhone(phone);
+  if(!tel) return null;
+  const list = loadClients();
+  return list.find(c=>c.tel===tel) || null;
+};
+const syncClientsRemote = async () => {
+  if(!CLIENTS_ENDPOINT) return;
+  try{
+    const sep = CLIENTS_ENDPOINT.includes('?') ? '&' : '?';
+    const url = `${CLIENTS_ENDPOINT}${sep}t=${Date.now()}`;
+    const resp = await fetch(url, {cache:'no-store'});
+    const text = await resp.text();
+    let data = null;
+    try{ data = JSON.parse(text); }catch{}
+    if(!resp.ok || (data && data.ok === false)) return;
+    if(!data || !Array.isArray(data.clients)) return;
+    const normalized = data.clients.map(c=>({ ...c, tel: normalizePhone(c.tel) }));
+    localStorage.setItem(CLIENT_STORE_KEY, JSON.stringify(normalized));
+  }catch{
+    // ignore
+  }
+};
+const applyClientToCheckout = client => {
+  if(!client) return;
+  const nomeEl=document.getElementById('inp-nome');
+  const telEl=document.getElementById('inp-tel');
+  const cepEl=document.getElementById('inp-cep');
+  const ruaEl=document.getElementById('inp-rua');
+  const numEl=document.getElementById('inp-num');
+  const bairroEl=document.getElementById('inp-bairro');
+  const cidadeEl=document.getElementById('inp-cidade');
+  const compEl=document.getElementById('inp-comp');
+  const refEl=document.getElementById('inp-ref');
+  if(nomeEl) nomeEl.value=client.nome || '';
+  if(telEl) telEl.value=client.tel || '';
+  if(cepEl) cepEl.value=client.cep || '';
+  if(ruaEl) ruaEl.value=client.rua || '';
+  if(numEl) numEl.value=client.num || '';
+  if(bairroEl) bairroEl.value=client.bairro || '';
+  if(cidadeEl) cidadeEl.value=client.cidade || '';
+  if(compEl) compEl.value=client.comp || '';
+  if(refEl) refEl.value=client.ref || '';
+  if(cepEl) maybeAutoCalcularTaxa(cepEl.value);
+};
 
 /* ========= catálogo ========= */
 const WHATSAPP_ORDER = '5511999192139';
@@ -1157,11 +1213,21 @@ const CEP_DELTA_RATES = [
 ];
 const SPECIAL_CEP_PREFIX = '04860';
 const SPECIAL_CEP_ENDINGS = new Set(['010','020','030','040','050','060','070','080','090']);
+const FIXED_PREFIX_RATES = [
+  { prefix: '04870', rate: 15.00 }
+];
 function isSpecialCep(cep){
   if(!cep || cep.length !== 8) return false;
   if(!cep.startsWith(SPECIAL_CEP_PREFIX)) return false;
   const end = cep.slice(-3);
   return SPECIAL_CEP_ENDINGS.has(end);
+}
+function getFixedPrefixRate(cep){
+  if(!cep || cep.length !== 8) return null;
+  for(const item of FIXED_PREFIX_RATES){
+    if(cep.startsWith(item.prefix)) return item.rate;
+  }
+  return null;
 }
 function taxaPorCepDelta(diff){
   for(const faixa of CEP_DELTA_RATES){
@@ -1195,6 +1261,13 @@ function calcularTaxaEntrega(value, opts = {}){
     renderCart();
     return;
   }
+  const fixedRate = getFixedPrefixRate(cep);
+  if(fixedRate !== null){
+    TAXA=fixedRate;
+    txPrev.textContent=BRL(TAXA);
+    renderCart();
+    return;
+  }
   const diff = Math.abs(cepNum - BASE_CEP_NUM);
   const t = taxaPorCepDelta(diff);
   if(t==null){ if(!opts.silent){ alert('CEP fora da area de entrega.'); } TAXA=0; }
@@ -1211,6 +1284,32 @@ function maybeAutoCalcularTaxa(value){
 }
 document.getElementById('btn-taxa').onclick=()=>calcularTaxaEntrega(document.getElementById('inp-cep').value,{silent:false});
 cepInput.addEventListener('input',e=>maybeAutoCalcularTaxa(e.target.value));
+
+if(IS_ATTENDANT){
+  syncClientsRemote();
+  const telInput=document.getElementById('inp-tel');
+  let telTimer=null;
+  const lookupClient=(force)=>{
+    if(!telInput) return;
+    const tel=normalizePhone(telInput.value);
+    if(!tel) return;
+    if(!force && tel.length < 8) return;
+    const client=findClientByPhone(tel);
+    if(client) applyClientToCheckout(client);
+  };
+  if(telInput){
+    telInput.addEventListener('input',()=>{
+      clearTimeout(telTimer);
+      telTimer=setTimeout(()=>lookupClient(false),250);
+    });
+    telInput.addEventListener('blur',()=>lookupClient(true));
+  }
+  const telParam=urlParams.get('tel');
+  if(telParam && telInput){
+    telInput.value=telParam;
+    lookupClient(true);
+  }
+}
 
 function getCheckoutData(){
   return {
