@@ -186,6 +186,9 @@ footer .footer-hours{color:var(--muted)}
 footer .footer-dev{margin-top:28px;padding-top:14px;border-top:1px solid rgba(255,255,255,.08);display:grid;gap:6px}
 footer .footer-dev .dev-promo{font-weight:600;color:var(--text)}
 footer .footer-dev .dev-contact{font-weight:600;color:var(--muted)}
+footer .footer-attendant{margin-top:10px}
+footer .footer-attendant a{color:var(--muted);text-decoration:none;font-weight:600}
+footer .footer-attendant a:hover{color:var(--text)}
 .hidden{display:none!important}
 
 .reveal{opacity:0;transform:translateY(14px);filter:blur(2px)}
@@ -218,6 +221,7 @@ footer .footer-dev .dev-contact{font-weight:600;color:var(--muted)}
     <div class="tagline reveal" style="--delay:200ms">Forno a lenha, massa leve, pedido simples e rápido pelo WhatsApp para deixar sua pizza ainda mais perfeita!</div>
     <div class="toolbar reveal" style="--delay:280ms">
       <div id="status" class="pill">Verificando horário...</div>
+      <div id="attendant-pill" class="pill hidden">Modo Atendimento</div>
       <button id="btn-half" class="badge" type="button">Pizza 2 Sabores</button>
       <a class="badge" href="#pizzas">Pizzas</a>
       <a class="badge" href="#pasteis">Pastéis</a>
@@ -259,6 +263,9 @@ footer .footer-dev .dev-contact{font-weight:600;color:var(--muted)}
     <div class="footer-dev">
       <div class="dev-promo">Quer um aplicativo como esse? Entre em contato com a RR SOLUTIONS.</div>
       <div class="dev-contact">WhatsApp: 11 91095-0968</div>
+      <div class="footer-attendant">
+        <a href="index.html?atendente=1">Acesso do atendente</a>
+      </div>
     </div>
   </footer>
 </div>
@@ -389,8 +396,9 @@ footer .footer-dev .dev-contact{font-weight:600;color:var(--muted)}
       <div style="align-self:center;color:var(--muted)">Taxa: <strong id="tx-preview">R$ 0,00</strong></div>
     </div>
 
-    <div style="display:flex;gap:10px;margin-top:12px">
+    <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">
       <button id="btn-voltar" class="btn sec" style="flex:1">Voltar</button>
+      <button id="btn-registrar" class="btn sec hidden" style="flex:1" type="button">Registrar no painel</button>
       <button id="btn-whats" class="btn" style="flex:2">Enviar no WhatsApp</button>
     </div>
 
@@ -418,6 +426,12 @@ const openNow = () => {
 };
 const hoursLabel='Ter-Dom 18:00–00:00 (pedidos até 23:45)';
 document.querySelector('#status').textContent = (openNow()?'Aberto agora · ':'Fechado agora · ')+hoursLabel;
+const urlParams = new URLSearchParams(window.location.search);
+const IS_ATTENDANT = urlParams.has('atendente') || urlParams.has('atendimento') || urlParams.get('modo') === 'atendente';
+const attendantPill = document.getElementById('attendant-pill');
+if(attendantPill) attendantPill.classList.toggle('hidden', !IS_ATTENDANT);
+const btnRegistrar = document.getElementById('btn-registrar');
+if(btnRegistrar) btnRegistrar.classList.toggle('hidden', !IS_ATTENDANT);
 
 /* ========= catálogo ========= */
 const WHATSAPP_ORDER = '5511999192139';
@@ -1184,20 +1198,29 @@ function maybeAutoCalcularTaxa(value){
 document.getElementById('btn-taxa').onclick=()=>calcularTaxaEntrega(document.getElementById('inp-cep').value,{silent:false});
 cepInput.addEventListener('input',e=>maybeAutoCalcularTaxa(e.target.value));
 
-/* Enviar WhatsApp */
-document.getElementById('btn-whats').onclick=async ()=>{
-  const nome=document.getElementById('inp-nome').value.trim();
-  const tel=document.getElementById('inp-tel').value.trim();
-  const cep=document.getElementById('inp-cep').value.trim();
-  const rua=document.getElementById('inp-rua').value.trim();
-  const num=document.getElementById('inp-num').value.trim();
-  const bairro=document.getElementById('inp-bairro').value.trim();
-  const cidade=document.getElementById('inp-cidade').value.trim();
-  const comp=document.getElementById('inp-comp').value.trim();
-  const ref=document.getElementById('inp-ref').value.trim();
+function getCheckoutData(){
+  return {
+    nome: document.getElementById('inp-nome').value.trim(),
+    tel: document.getElementById('inp-tel').value.trim(),
+    cep: document.getElementById('inp-cep').value.trim(),
+    rua: document.getElementById('inp-rua').value.trim(),
+    num: document.getElementById('inp-num').value.trim(),
+    bairro: document.getElementById('inp-bairro').value.trim(),
+    cidade: document.getElementById('inp-cidade').value.trim(),
+    comp: document.getElementById('inp-comp').value.trim(),
+    ref: document.getElementById('inp-ref').value.trim()
+  };
+}
 
-  if(!nome || !cep || !rua || !num || !bairro || !cidade){ alert('Preencha os campos obrigatórios (nome, CEP, endereço).'); return; }
-  if(TAXA===0){ if(!confirm('A taxa esta R$ 0,00. Deseja enviar assim mesmo? Verifique o CEP para estimar.')) return; }
+async function submitOrder({sendWhatsApp}){
+  const data=getCheckoutData();
+  if(!data.nome || !data.cep || !data.rua || !data.num || !data.bairro || !data.cidade){
+    alert('Preencha os campos obrigatórios (nome, CEP, endereço).');
+    return;
+  }
+  if(TAXA===0){
+    if(!confirm('A taxa esta R$ 0,00. Deseja enviar assim mesmo? Verifique o CEP para estimar.')) return;
+  }
 
   const pedido = buildOrderPayload();
   try{
@@ -1208,26 +1231,38 @@ document.getElementById('btn-whats').onclick=async ()=>{
     return;
   }
 
-  const linhas=[];
-  linhas.push(`\u{1F355} *Pedido Pizzaria Condors*`, '');
-  CART.forEach((it,i)=>linhas.push(`${i+1}. ${it.nome} - ${BRL(it.preco)}${it.det?` | ${it.det}`:''}`));
-  linhas.push(''); linhas.push(`\u{1F9FE} Subtotal: ${document.getElementById('sub').textContent}`);
-  linhas.push(`\u{1F69A} Taxa: ${BRL(TAXA)}`); linhas.push(`\u{1F3F7} Desconto: ${document.getElementById('desc').textContent}`);
-  const total = CART.reduce((a,b)=>a+b.preco,0)+TAXA-DESCONTO;
-  linhas.push(`\u{1F4B5} *Total: ${BRL(total)}*`,'',`\u{1F4CD} *Entrega*`);
-  linhas.push(`${rua}, ${num} ${comp?`- ${comp}`:''}`);
-  linhas.push(`${bairro} - ${cidade} - CEP ${cep}`);
-  if(ref) linhas.push(`Referência: ${ref}`); if(tel) linhas.push(`Contato: ${tel}`);
-  linhas.push('', openNow()? '\u{1F525} Pedido para *agora*' : '\u{23F0} Fora do horário. Desejo programar/confirmar horário.');
-  const msg=encodeURIComponent(linhas.join('\n'));
-  window.open(`https://wa.me/5511999192139?text=${msg}`,'_blank');
+  if(sendWhatsApp){
+    const linhas=[];
+    linhas.push(`\u{1F355} *Pedido Pizzaria Condors*`, '');
+    CART.forEach((it,i)=>linhas.push(`${i+1}. ${it.nome} - ${BRL(it.preco)}${it.det?` | ${it.det}`:''}`));
+    linhas.push('');
+    linhas.push(`\u{1F9FE} Subtotal: ${document.getElementById('sub').textContent}`);
+    linhas.push(`\u{1F69A} Taxa: ${BRL(TAXA)}`);
+    linhas.push(`\u{1F3F7} Desconto: ${document.getElementById('desc').textContent}`);
+    const total = CART.reduce((a,b)=>a+b.preco,0)+TAXA-DESCONTO;
+    linhas.push(`\u{1F4B5} *Total: ${BRL(total)}*`,'',`\u{1F4CD} *Entrega*`);
+    linhas.push(`${data.rua}, ${data.num} ${data.comp?`- ${data.comp}`:''}`);
+    linhas.push(`${data.bairro} - ${data.cidade} - CEP ${data.cep}`);
+    if(data.ref) linhas.push(`Referência: ${data.ref}`);
+    if(data.tel) linhas.push(`Contato: ${data.tel}`);
+    linhas.push('', openNow()? '\u{1F525} Pedido para *agora*' : '\u{23F0} Fora do horário. Desejo programar/confirmar horário.');
+    const msg=encodeURIComponent(linhas.join('\n'));
+    window.open(`https://wa.me/${WHATSAPP_ORDER}?text=${msg}`,'_blank');
+  }else{
+    alert('Pedido registrado no painel de impressão.');
+  }
+
   CART=[]; TAXA=0.00; DESCONTO=0.00;
   renderCart();
   document.getElementById('tx-preview').textContent=BRL(TAXA);
   modalCheckout.setAttribute('aria-hidden','true');
   closeDrawer();
+}
 
-};
+/* Enviar WhatsApp */
+const btnWhats=document.getElementById('btn-whats');
+if(btnWhats) btnWhats.onclick=()=>submitOrder({sendWhatsApp:true});
+if(btnRegistrar) btnRegistrar.onclick=()=>submitOrder({sendWhatsApp:false});
 
 /* ========= pizza rain ========= */
 const rainCanvas=document.getElementById('pizza-rain');
