@@ -1376,6 +1376,14 @@ if(pixCopyBtn){
   };
 }
 
+let isSubmitting=false;
+const setCheckoutButtonsDisabled = (disabled) => {
+  const buttons = [document.getElementById('btn-whats'), document.getElementById('btn-registrar')].filter(Boolean);
+  buttons.forEach(btn=>{
+    btn.disabled = disabled;
+  });
+};
+
 if(IS_ATTENDANT){
   const telInput=document.getElementById('inp-tel');
   let telTimer=null;
@@ -1429,6 +1437,12 @@ async function submitOrder({sendWhatsApp}){
   if(TAXA===0){
     if(!confirm('A taxa esta R$ 0,00. Deseja enviar assim mesmo? Verifique o CEP para estimar.')) return;
   }
+  if(isSubmitting){
+    alert('Pedido ja esta sendo enviado. Aguarde.');
+    return;
+  }
+  isSubmitting=true;
+  setCheckoutButtonsDisabled(true);
 
   const pedido = buildOrderPayload();
   try{
@@ -1436,6 +1450,8 @@ async function submitOrder({sendWhatsApp}){
     console.log('Pedido enviado ao painel:', pedido.id);
   }catch(err){
     alert('Não foi possível enviar ao painel de impressão. Tente novamente.');
+    isSubmitting=false;
+    setCheckoutButtonsDisabled(false);
     return;
   }
 
@@ -1480,6 +1496,8 @@ async function submitOrder({sendWhatsApp}){
   updatePixArea();
   modalCheckout.setAttribute('aria-hidden','true');
   closeDrawer();
+  isSubmitting=false;
+  setCheckoutButtonsDisabled(false);
 }
 
 /* Enviar WhatsApp */

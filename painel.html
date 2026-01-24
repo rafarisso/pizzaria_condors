@@ -271,6 +271,14 @@ function isPhoneSearch(value){
   return digits.length >= 8;
 }
 
+function formatWhatsAppPhone(value){
+  const digits=normalizePhone(value);
+  if(!digits) return '';
+  if(digits.length >= 12) return digits;
+  if(digits.length === 10 || digits.length === 11) return `55${digits}`;
+  return digits;
+}
+
 function normalizeClient(client){
   if(!client || typeof client !== 'object') return null;
   return {
@@ -849,6 +857,7 @@ function renderOrders(list){
     const completeLabel = status === 'CONCLUIDO' ? 'Concluído' : 'Concluir';
     const completeDisabled = status === 'CONCLUIDO' ? 'disabled' : '';
     const deleteDisabled = order.id ? '' : 'disabled';
+    const deliveryDisabled = customer.tel ? '' : 'disabled';
     card.innerHTML=`
       <div class="row">
         <strong>${comandaLabel(order)}</strong>
@@ -883,6 +892,7 @@ function renderOrders(list){
       <div class="actions">
         <button class="btn" data-print="${order.id}">${printLabel}</button>
         <button class="btn sec" data-complete="${order.id}" ${completeDisabled}>${completeLabel}</button>
+        <button class="btn sec" data-delivery="${order.id}" ${deliveryDisabled}>Saiu p/ entrega</button>
         <button class="btn sec" data-delete="${order.id}" ${deleteDisabled}>Apagar</button>
       </div>
     `;
@@ -1066,6 +1076,23 @@ async function fetchOrders(){
 
 document.getElementById('btn-refresh').onclick=fetchOrders;
 ordersEl.addEventListener('click',async ev=>{
+  const deliveryBtn=ev.target.closest('[data-delivery]');
+  if(deliveryBtn){
+    const id=deliveryBtn.dataset.delivery;
+    if(!id) return;
+    const order=CURRENT_ORDERS.find(o=>o.id===id);
+    if(!order) return;
+    const telRaw = order.customer && order.customer.tel ? order.customer.tel : '';
+    const tel = formatWhatsAppPhone(telRaw);
+    if(!tel || tel.length < 10){
+      alert('Telefone do cliente nao informado.');
+      return;
+    }
+    const nome = order.customer && order.customer.nome ? order.customer.nome : 'cliente';
+    const msg = `Ola ${nome}! Seu pedido saiu para entrega. Por favor, aguarde o motoqueiro para agilizar a entrega. Obrigado!`;
+    window.open(`https://wa.me/${tel}?text=${encodeURIComponent(msg)}`,'_blank');
+    return;
+  }
   const deleteBtn=ev.target.closest('[data-delete]');
   if(deleteBtn){
     const id=deleteBtn.dataset.delete;
