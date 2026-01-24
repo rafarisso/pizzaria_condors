@@ -303,10 +303,11 @@ footer .footer-attendant a:hover{color:var(--text)}
     </div>
 
     <div style="margin:12px 0 6px;font-weight:700">Borda recheada</div>
-    <label class="opt"><input id="opt-borda-requeijao" type="checkbox" data-borda="true" data-price="0" value="Borda recheada com Requeijao Gratis"> Borda recheada com Requeijao Gratis (+ R$ 0,00)</label>
-    <label class="opt"><input id="opt-borda" type="checkbox" data-borda="true" data-price="16" value="Borda recheada com Catupiry Original"> Borda recheada com Catupiry Original (+ R$ 16,00)</label>
-    <label class="opt"><input id="opt-borda-cheddar" type="checkbox" data-borda="true" data-price="16" value="Borda recheada de Cheddar"> Borda recheada de Cheddar (+ R$ 16,00)</label>
-    <label class="opt"><input id="opt-borda-choco" type="checkbox" data-borda="true" data-price="16" value="Borda recheada de Chocolate"> Borda recheada de Chocolate (+ R$ 16,00)</label>
+    <label class="opt"><input type="radio" name="borda-custom" data-borda="true" data-borda-default="true" data-no-detail="true" data-price="0" value="Sem borda - Grátis" checked> Sem borda - Grátis</label>
+    <label class="opt"><input id="opt-borda-requeijao" type="radio" name="borda-custom" data-borda="true" data-price="0" value="Borda recheada com Requeijao Gratis"> Borda recheada com Requeijao Gratis (+ R$ 0,00)</label>
+    <label class="opt"><input id="opt-borda" type="radio" name="borda-custom" data-borda="true" data-price="16" value="Borda recheada com Catupiry Original"> Borda recheada com Catupiry Original (+ R$ 16,00)</label>
+    <label class="opt"><input id="opt-borda-cheddar" type="radio" name="borda-custom" data-borda="true" data-price="16" value="Borda recheada de Cheddar"> Borda recheada de Cheddar (+ R$ 16,00)</label>
+    <label class="opt"><input id="opt-borda-choco" type="radio" name="borda-custom" data-borda="true" data-price="16" value="Borda recheada de Chocolate"> Borda recheada de Chocolate (+ R$ 16,00)</label>
 
     <div class="footer">
       <div><strong>Parcial:</strong> <span id="parcial">R$ 0,00</span></div>
@@ -336,10 +337,11 @@ footer .footer-attendant a:hover{color:var(--text)}
     <label class="opt"><input type="radio" name="tamanho-half" value="Grande 35 cm" data-multiplier="1"> Grande 35 cm <small>(sem adicional)</small></label>
 
     <div style="margin:12px 0 6px;font-weight:700">Borda recheada</div>
-    <label class="opt"><input type="checkbox" data-half-borda="true" data-price="0" value="Borda recheada com Requeijao Gratis"> Borda recheada com Requeijao Gratis (+ R$ 0,00)</label>
-    <label class="opt"><input type="checkbox" data-half-borda="true" data-price="16" value="Borda recheada com Catupiry Original"> Borda recheada com Catupiry Original (+ R$ 16,00)</label>
-    <label class="opt"><input type="checkbox" data-half-borda="true" data-price="16" value="Borda recheada de Cheddar"> Borda recheada de Cheddar (+ R$ 16,00)</label>
-    <label class="opt"><input type="checkbox" data-half-borda="true" data-price="16" value="Borda recheada de Chocolate"> Borda recheada de Chocolate (+ R$ 16,00)</label>
+    <label class="opt"><input type="radio" name="borda-half" data-half-borda="true" data-half-borda-default="true" data-no-detail="true" data-price="0" value="Sem borda - Grátis" checked> Sem borda - Grátis</label>
+    <label class="opt"><input type="radio" name="borda-half" data-half-borda="true" data-price="0" value="Borda recheada com Requeijao Gratis"> Borda recheada com Requeijao Gratis (+ R$ 0,00)</label>
+    <label class="opt"><input type="radio" name="borda-half" data-half-borda="true" data-price="16" value="Borda recheada com Catupiry Original"> Borda recheada com Catupiry Original (+ R$ 16,00)</label>
+    <label class="opt"><input type="radio" name="borda-half" data-half-borda="true" data-price="16" value="Borda recheada de Cheddar"> Borda recheada de Cheddar (+ R$ 16,00)</label>
+    <label class="opt"><input type="radio" name="borda-half" data-half-borda="true" data-price="16" value="Borda recheada de Chocolate"> Borda recheada de Chocolate (+ R$ 16,00)</label>
 
     <div class="footer">
       <div><strong>Parcial:</strong> <span id="half-parcial">R$ 0,00</span></div>
@@ -435,10 +437,24 @@ if(btnRegistrar) btnRegistrar.classList.toggle('hidden', !IS_ATTENDANT);
 const CLIENTS_ENDPOINT = '/.netlify/functions/sheets-clients';
 const CLIENT_STORE_KEY = 'condor_clients_v1';
 const normalizePhone = value => String(value || '').replace(/\D/g,'');
+const normalizeCep = value => {
+  const digits = String(value || '').replace(/\D/g,'');
+  if(digits.length === 7) return digits.padStart(8,'0');
+  return digits;
+};
+const normalizeClient = (client) => {
+  if(!client || typeof client !== 'object') return null;
+  return {
+    ...client,
+    tel: normalizePhone(client.tel),
+    cep: normalizeCep(client.cep)
+  };
+};
 const loadClients = () => {
   try{
     const raw=localStorage.getItem(CLIENT_STORE_KEY);
-    return raw ? JSON.parse(raw) : [];
+    const list = raw ? JSON.parse(raw) : [];
+    return Array.isArray(list) ? list.map(normalizeClient).filter(Boolean) : [];
   }catch{
     return [];
   }
@@ -460,7 +476,7 @@ const syncClientsRemote = async () => {
     try{ data = JSON.parse(text); }catch{}
     if(!resp.ok || (data && data.ok === false)) return;
     if(!data || !Array.isArray(data.clients)) return;
-    const normalized = data.clients.map(c=>({ ...c, tel: normalizePhone(c.tel) }));
+    const normalized = data.clients.map(normalizeClient).filter(Boolean);
     localStorage.setItem(CLIENT_STORE_KEY, JSON.stringify(normalized));
   }catch{
     // ignore
@@ -479,7 +495,7 @@ const applyClientToCheckout = client => {
   const refEl=document.getElementById('inp-ref');
   if(nomeEl) nomeEl.value=client.nome || '';
   if(telEl) telEl.value=client.tel || '';
-  if(cepEl) cepEl.value=client.cep || '';
+  if(cepEl) cepEl.value=normalizeCep(client.cep || '');
   if(ruaEl) ruaEl.value=client.rua || '';
   if(numEl) numEl.value=client.num || '';
   if(bairroEl) bairroEl.value=client.bairro || '';
@@ -824,7 +840,7 @@ function renderCart(){
 function buildOrderPayload(){
   const nome=document.getElementById('inp-nome').value.trim();
   const tel=document.getElementById('inp-tel').value.trim();
-  const cep=document.getElementById('inp-cep').value.trim();
+  const cep=normalizeCep(document.getElementById('inp-cep').value.trim());
   const rua=document.getElementById('inp-rua').value.trim();
   const num=document.getElementById('inp-num').value.trim();
   const bairro=document.getElementById('inp-bairro').value.trim();
@@ -981,6 +997,8 @@ function openCustomizeWithIngredients(prod, ingredients){
   document.getElementById('modal-title').textContent=`Personalize: ${prod.nome}`;
   modal.querySelectorAll('input[name="tamanho"]').forEach(r=>r.checked=(r.value==='Broto 25 cm'));
   modal.querySelectorAll('input[data-borda]').forEach(b=>b.checked=false);
+  const defaultBorda = modal.querySelector('input[data-borda-default]');
+  if(defaultBorda) defaultBorda.checked = true;
   const isMonte = MONTE_PIZZAS.has(prod.id);
   if(meioToggle){
     meioToggle.checked=false;
@@ -1043,7 +1061,7 @@ document.getElementById('btn-add-custom').onclick=()=>{
   v = v * sizeMultiplier;
   modal.querySelectorAll('input[data-borda]:checked').forEach(b=>{
     v+=parseFloat(b.dataset.price||'0');
-    det.push(b.value);
+    if(b.dataset.noDetail !== 'true') det.push(b.value);
   });
   v=Math.round(v*100)/100;
   addToCart({nome:CURRENT.nome,preco:v,det:det.join(' · ')}); modal.setAttribute('aria-hidden','true');
@@ -1114,6 +1132,8 @@ function openHalfModal(){
   if(halfSelect2) halfSelect2.value='';
   halfModal.querySelectorAll('input[name="tamanho-half"]').forEach(r=>r.checked=(r.value==='Broto 25 cm'));
   halfModal.querySelectorAll('input[data-half-borda]').forEach(b=>b.checked=false);
+  const defaultHalfBorda = halfModal.querySelector('input[data-half-borda-default]');
+  if(defaultHalfBorda) defaultHalfBorda.checked = true;
   updateHalfParcial();
   halfModal.setAttribute('aria-hidden','false');
 }
@@ -1145,7 +1165,7 @@ if(halfAdd) halfAdd.onclick=()=>{
     let v=Math.max(p1.preco, p2.preco) * sizeMultiplier;
     halfModal.querySelectorAll('input[data-half-borda]:checked').forEach(b=>{
       v+=parseFloat(b.dataset.price||'0');
-      det.push(b.value);
+      if(b.dataset.noDetail !== 'true') det.push(b.value);
     });
     v=Math.round(v*100)/100;
     addToCart({nome:'Pizza 2 Sabores',preco:v,det:det.join(' · ')});
@@ -1183,7 +1203,7 @@ const fetchViaCepJsonp = (cep) => new Promise((resolve, reject) => {
   document.body.appendChild(script);
 });
 async function fillAddressFromCep(value){
-  const cep=value.replace(/\D/g,'');
+  const cep=normalizeCep(value);
   if(cep.length!=8){ if(cep.length<8) lastCepLookup=''; return; }
   if(cep==lastCepLookup) return;
   lastCepLookup=cep;
@@ -1237,7 +1257,7 @@ function taxaPorCepDelta(diff){
 }
 let lastTaxaCep='';
 function calcularTaxaEntrega(value, opts = {}){
-  const cep=(value||'').replace(/\D/g,'');
+  const cep=normalizeCep(value||'');
   const txPrev=document.getElementById('tx-preview');
   if(cep.length!=8){
     if(!opts.silent){ alert('Preencha o CEP para calcular a entrega.'); }
@@ -1276,17 +1296,16 @@ function calcularTaxaEntrega(value, opts = {}){
   renderCart();
 }
 function maybeAutoCalcularTaxa(value){
-  const cep=(value||'').replace(/\D/g,'');
+  const cep=normalizeCep(value||'');
   if(cep.length!=8){ lastTaxaCep=''; calcularTaxaEntrega(value,{silent:true}); return; }
   if(cep===lastTaxaCep) return;
   lastTaxaCep=cep;
-  calcularTaxaEntrega(value,{silent:true});
+  calcularTaxaEntrega(cep,{silent:true});
 }
 document.getElementById('btn-taxa').onclick=()=>calcularTaxaEntrega(document.getElementById('inp-cep').value,{silent:false});
 cepInput.addEventListener('input',e=>maybeAutoCalcularTaxa(e.target.value));
 
 if(IS_ATTENDANT){
-  syncClientsRemote();
   const telInput=document.getElementById('inp-tel');
   let telTimer=null;
   const lookupClient=(force)=>{
@@ -1309,13 +1328,16 @@ if(IS_ATTENDANT){
     telInput.value=telParam;
     lookupClient(true);
   }
+  syncClientsRemote().then(()=>{
+    if(telInput && telInput.value) lookupClient(true);
+  });
 }
 
 function getCheckoutData(){
   return {
     nome: document.getElementById('inp-nome').value.trim(),
     tel: document.getElementById('inp-tel').value.trim(),
-    cep: document.getElementById('inp-cep').value.trim(),
+    cep: normalizeCep(document.getElementById('inp-cep').value.trim()),
     rua: document.getElementById('inp-rua').value.trim(),
     num: document.getElementById('inp-num').value.trim(),
     bairro: document.getElementById('inp-bairro').value.trim(),
