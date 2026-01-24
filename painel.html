@@ -263,6 +263,14 @@ function formatPhone(value){
   return digits || value || '';
 }
 
+function isPhoneSearch(value){
+  const raw = String(value || '').trim();
+  if(!raw) return false;
+  if(!/^[\d\s().+-]+$/.test(raw)) return false;
+  const digits = normalizePhone(raw);
+  return digits.length >= 8;
+}
+
 function normalizeClient(client){
   if(!client || typeof client !== 'object') return null;
   return {
@@ -499,6 +507,18 @@ function buildAddressLines(o){
   return lines;
 }
 
+function getOrderPayment(order){
+  if(!order) return '';
+  const value = order.pagamento || order.payment || order.formaPagamento || '';
+  return String(value || '').trim();
+}
+
+function getOrderObs(order){
+  if(!order) return '';
+  const value = order.obs || order.observacao || '';
+  return String(value || '').trim();
+}
+
 function parseOrderDate(order){
   const d=new Date(order && order.createdAt ? order.createdAt : '');
   return Number.isNaN(d.getTime()) ? null : d;
@@ -706,11 +726,16 @@ function clearClientForm(){
 function renderClientList(){
   if(!clientListEl) return;
   clientListEl.innerHTML='';
-  const term = (clientSearchEl ? clientSearchEl.value : '').trim().toLowerCase();
+  const rawTerm = (clientSearchEl ? clientSearchEl.value : '');
+  const term = rawTerm.trim().toLowerCase();
+  const termDigits = normalizePhone(rawTerm);
+  const phoneSearch = isPhoneSearch(rawTerm);
   const list = CLIENTS.filter(c=>{
     if(!term) return true;
-    const target = `${c.nome || ''} ${c.tel || ''}`.toLowerCase();
-    return target.includes(term);
+    const name = (c.nome || '').toLowerCase();
+    const tel = normalizePhone(c.tel);
+    if(phoneSearch) return tel.includes(termDigits);
+    return name.includes(term) || tel.includes(termDigits);
   }).slice().sort((a,b)=>{
     const an=(a.nome || '').trim();
     const bn=(b.nome || '').trim();
@@ -722,13 +747,18 @@ function renderClientList(){
   if(!list.length){
     const empty=document.createElement('div');
     empty.className='empty';
-    empty.textContent=CLIENTS.length ? 'Nenhum cliente encontrado.' : 'Nenhum cliente cadastrado.';
+    if(phoneSearch && termDigits){
+      empty.textContent='Cliente não cadastrado.';
+    }else{
+      empty.textContent=CLIENTS.length ? 'Nenhum cliente encontrado.' : 'Nenhum cliente cadastrado.';
+    }
     clientListEl.appendChild(empty);
     return;
   }
   list.forEach(client=>{
     const card=document.createElement('div');
     card.className='card';
+    card.dataset.clientTel = normalizePhone(client.tel);
     const row=document.createElement('div');
     row.className='row';
     const name=document.createElement('strong');
@@ -785,6 +815,12 @@ function renderClientList(){
     card.appendChild(actions);
     clientListEl.appendChild(card);
   });
+  if(phoneSearch && termDigits){
+    const target = clientListEl.querySelector(`[data-client-tel="${termDigits}"]`);
+    if(target){
+      target.scrollIntoView({behavior:'smooth', block:'center'});
+    }
+  }
 }
 
 function renderOrders(list){
@@ -803,6 +839,8 @@ function renderOrders(list){
     const customer=order.customer || {};
     const totals=order.totals || {};
     const items=order.items || [];
+    const payment = getOrderPayment(order);
+    const obs = getOrderObs(order);
     const orderId = order.id || 'Pedido';
     const status = normalizeStatus(order);
     const statusText = statusLabel(status);
@@ -825,6 +863,8 @@ function renderOrders(list){
         <span class="muted">${customer.tel || ''}</span>
       </div>
       <div class="muted">${buildAddress(order)}</div>
+      ${payment ? `<div class="row"><span>Pagamento</span><span>${payment}</span></div>` : ''}
+      ${obs ? `<div class="muted">Obs: ${obs}</div>` : ''}
       <div class="items">
         ${items.map(it=>`<div class="item"><span>${it.nome}${it.det?`<div class="muted">${it.det}</div>`:''}</span><strong>${BRL(it.preco)}</strong></div>`).join('')}
       </div>
@@ -874,6 +914,8 @@ function renderCompletedList(){
     const customer=order.customer || {};
     const totals=order.totals || {};
     const items=order.items || [];
+    const payment = getOrderPayment(order);
+    const obs = getOrderObs(order);
     const orderId = order.id || 'Pedido';
     card.innerHTML=`
       <div class="row">
@@ -888,6 +930,8 @@ function renderCompletedList(){
         <span>${customer.nome || 'Cliente'}</span>
         <span class="muted">${customer.tel || ''}</span>
       </div>
+      ${payment ? `<div class="row"><span>Pagamento</span><span>${payment}</span></div>` : ''}
+      ${obs ? `<div class="muted">Obs: ${obs}</div>` : ''}
       <div class="items">
         ${items.map(it=>`<div class="item"><span>${it.nome}${it.det?`<div class="muted">${it.det}</div>`:''}</span><strong>${BRL(it.preco)}</strong></div>`).join('')}
       </div>
@@ -904,6 +948,10 @@ function printOrder(order){
   const addressLines=buildAddressLines(order);
   const items=order.items || [];
   const totals=order.totals || {};
+  const payment = getOrderPayment(order);
+  const obsRaw = getOrderObs(order);
+  const obs = obsRaw ? String(obsRaw).trim() : '';
+  const obsHtml = obs ? obs.replace(/\n/g,'<br>') : '';
   const comandaNumber = order && order.comanda ? padComanda(order.comanda) : '';
   const contactLine = customer.tel ? `Contato: ${customer.tel}` : '';
   const addressHtml = addressLines.map(line=>`<div>${line}</div>`).join('');
@@ -946,9 +994,11 @@ function printOrder(order){
   <div class="section-title">ITENS</div>
   <div class="items">${itemsHtml}</div>
   <div class="sep"></div>
+  ${obs ? `<div class="section-title">OBSERVACAO</div><div class="item-det">${obsHtml}</div><div class="sep"></div>` : ''}
   <div class="totals">
     <div class="row"><span>Sub-total</span><span>${BRL(totals.subtotal)}</span></div>
     <div class="row"><span>Taxa de Entrega</span><span>${BRL(totals.taxa)}</span></div>
+    ${payment ? `<div class="row"><span>Pagamento</span><span>${payment}</span></div>` : ''}
   </div>
   <div class="sep"></div>
   <div class="row total"><span>Total</span><span>${BRL(totals.total)}</span></div>

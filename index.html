@@ -398,6 +398,25 @@ footer .footer-attendant a:hover{color:var(--text)}
       <div style="align-self:center;color:var(--muted)">Taxa: <strong id="tx-preview">R$ 0,00</strong></div>
     </div>
 
+    <div style="margin-top:14px">
+      <div style="margin:6px 0;font-weight:700">Forma de pagamento</div>
+      <label class="opt"><input type="radio" name="pay-method" value="Dinheiro" checked> Dinheiro</label>
+      <label class="opt"><input type="radio" name="pay-method" value="Débito"> Débito</label>
+      <label class="opt"><input type="radio" name="pay-method" value="Crédito"> Crédito</label>
+      <label class="opt"><input id="pay-pix" type="radio" name="pay-method" value="Pix"> Pix</label>
+      <div id="pix-area" class="hidden" style="margin-top:8px;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.12);display:grid;gap:8px">
+        <div><strong>Chave Pix (telefone):</strong> <span id="pix-key">11963770140</span></div>
+        <div>Nome: <span id="pix-name">Eva Luzia</span></div>
+        <div>Banco: <span id="pix-bank">Nubank</span></div>
+        <div class="muted">Apos o pagamento, envie o comprovante no WhatsApp.</div>
+        <button id="btn-copy-pix" class="btn sec" type="button">Copiar chave Pix</button>
+      </div>
+    </div>
+
+    <div style="margin-top:12px">
+      <textarea id="inp-obs" class="text" rows="2" placeholder="Observação (ex.: sem cebola)"></textarea>
+    </div>
+
     <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">
       <button id="btn-voltar" class="btn sec" style="flex:1">Voltar</button>
       <button id="btn-registrar" class="btn sec hidden" style="flex:1" type="button">Registrar no painel</button>
@@ -847,6 +866,8 @@ function buildOrderPayload(){
   const cidade=document.getElementById('inp-cidade').value.trim();
   const comp=document.getElementById('inp-comp').value.trim();
   const ref=document.getElementById('inp-ref').value.trim();
+  const pagamento=getPaymentMethod();
+  const obs=document.getElementById('inp-obs').value.trim();
   const subtotal = CART.reduce((a,b)=>a+b.preco,0);
   const total = subtotal + TAXA - DESCONTO;
   return {
@@ -854,6 +875,8 @@ function buildOrderPayload(){
     createdAt: new Date().toISOString(),
     customer: { nome, tel },
     address: { cep, rua, num, bairro, cidade, comp, ref },
+    pagamento,
+    obs,
     items: CART.map(it=>({ nome: it.nome, qtd: 1, preco: it.preco, det: it.det || '' })),
     totals: { subtotal, taxa: TAXA, desconto: DESCONTO, total }
   };
@@ -1305,6 +1328,54 @@ function maybeAutoCalcularTaxa(value){
 document.getElementById('btn-taxa').onclick=()=>calcularTaxaEntrega(document.getElementById('inp-cep').value,{silent:false});
 cepInput.addEventListener('input',e=>maybeAutoCalcularTaxa(e.target.value));
 
+const PIX_KEY = '11963770140';
+const PIX_NAME = 'Eva Luzia';
+const PIX_BANK = 'Nubank';
+const pixArea = document.getElementById('pix-area');
+const pixKeyEl = document.getElementById('pix-key');
+const pixNameEl = document.getElementById('pix-name');
+const pixBankEl = document.getElementById('pix-bank');
+const pixCopyBtn = document.getElementById('btn-copy-pix');
+const paymentInputs = [...document.querySelectorAll('input[name="pay-method"]')];
+const getPaymentMethod = () => {
+  const selected = document.querySelector('input[name="pay-method"]:checked');
+  return selected ? selected.value : 'Dinheiro';
+};
+const updatePixArea = () => {
+  if(pixArea){
+    pixArea.classList.toggle('hidden', getPaymentMethod() !== 'Pix');
+  }
+};
+if(pixKeyEl) pixKeyEl.textContent = PIX_KEY;
+if(pixNameEl) pixNameEl.textContent = PIX_NAME;
+if(pixBankEl) pixBankEl.textContent = PIX_BANK;
+if(paymentInputs.length){
+  paymentInputs.forEach(inp=>inp.addEventListener('change', updatePixArea));
+  updatePixArea();
+}
+if(pixCopyBtn){
+  pixCopyBtn.onclick=async ()=>{
+    try{
+      if(navigator.clipboard && window.isSecureContext){
+        await navigator.clipboard.writeText(PIX_KEY);
+      }else{
+        const tmp=document.createElement('textarea');
+        tmp.value=PIX_KEY;
+        tmp.style.position='fixed';
+        tmp.style.left='-9999px';
+        document.body.appendChild(tmp);
+        tmp.focus();
+        tmp.select();
+        document.execCommand('copy');
+        tmp.remove();
+      }
+      alert('Chave Pix copiada.');
+    }catch{
+      alert('Não foi possível copiar a chave.');
+    }
+  };
+}
+
 if(IS_ATTENDANT){
   const telInput=document.getElementById('inp-tel');
   let telTimer=null;
@@ -1343,7 +1414,9 @@ function getCheckoutData(){
     bairro: document.getElementById('inp-bairro').value.trim(),
     cidade: document.getElementById('inp-cidade').value.trim(),
     comp: document.getElementById('inp-comp').value.trim(),
-    ref: document.getElementById('inp-ref').value.trim()
+    ref: document.getElementById('inp-ref').value.trim(),
+    pagamento: getPaymentMethod(),
+    obs: document.getElementById('inp-obs').value.trim()
   };
 }
 
@@ -1375,7 +1448,17 @@ async function submitOrder({sendWhatsApp}){
     linhas.push(`\u{1F69A} Taxa: ${BRL(TAXA)}`);
     linhas.push(`\u{1F3F7} Desconto: ${document.getElementById('desc').textContent}`);
     const total = CART.reduce((a,b)=>a+b.preco,0)+TAXA-DESCONTO;
-    linhas.push(`\u{1F4B5} *Total: ${BRL(total)}*`,'',`\u{1F4CD} *Entrega*`);
+    linhas.push(`\u{1F4B5} *Total: ${BRL(total)}*`);
+    if(data.pagamento){
+      linhas.push(`Pagamento: ${data.pagamento}`);
+      if(data.pagamento === 'Pix'){
+        linhas.push(`Chave Pix: ${PIX_KEY}`);
+        linhas.push(`Nome: ${PIX_NAME} | Banco: ${PIX_BANK}`);
+        linhas.push('Por favor, envie o comprovante de pagamento no WhatsApp.');
+      }
+    }
+    if(data.obs) linhas.push(`Obs: ${data.obs}`);
+    linhas.push('',`\u{1F4CD} *Entrega*`);
     linhas.push(`${data.rua}, ${data.num} ${data.comp?`- ${data.comp}`:''}`);
     linhas.push(`${data.bairro} - ${data.cidade} - CEP ${data.cep}`);
     if(data.ref) linhas.push(`Referência: ${data.ref}`);
@@ -1390,6 +1473,11 @@ async function submitOrder({sendWhatsApp}){
   CART=[]; TAXA=0.00; DESCONTO=0.00;
   renderCart();
   document.getElementById('tx-preview').textContent=BRL(TAXA);
+  const obsInput=document.getElementById('inp-obs');
+  if(obsInput) obsInput.value='';
+  const payDefault=document.querySelector('input[name="pay-method"][value="Dinheiro"]');
+  if(payDefault) payDefault.checked=true;
+  updatePixArea();
   modalCheckout.setAttribute('aria-hidden','true');
   closeDrawer();
 }
