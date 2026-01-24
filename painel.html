@@ -954,24 +954,21 @@ function printOrder(order){
   <div class="row total"><span>Total</span><span>${BRL(totals.total)}</span></div>
   <div class="sep"></div>
   <div class="thanks">A Condor Pizzaria agradece a preferencia</div>
-  <script>
-    (function(){
-      function triggerPrint(){
-        try{ window.print(); }catch(e){}
-        window.onafterprint=()=>window.close();
-      }
-      const img=document.getElementById('logo-img');
-      if(img && !img.complete){
-        img.onload=triggerPrint;
-        img.onerror=triggerPrint;
-      }else{
-        triggerPrint();
-      }
-    })();
-  </script>
   </body></html>`);
   w.document.close();
-  w.focus();
+  w.addEventListener('load', ()=>{
+    const triggerPrint = () => {
+      try{ w.focus(); w.print(); }catch(e){}
+      w.onafterprint=()=>w.close();
+    };
+    const img=w.document.getElementById('logo-img');
+    if(img && !img.complete){
+      img.onload=triggerPrint;
+      img.onerror=triggerPrint;
+    }else{
+      triggerPrint();
+    }
+  });
 }
 
 async function markPrinted(orderId){
