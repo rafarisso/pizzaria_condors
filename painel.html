@@ -622,6 +622,13 @@ function renderClientList(){
     if(!term) return true;
     const target = `${c.nome || ''} ${c.tel || ''}`.toLowerCase();
     return target.includes(term);
+  }).slice().sort((a,b)=>{
+    const an=(a.nome || '').trim();
+    const bn=(b.nome || '').trim();
+    if(an && bn) return an.localeCompare(bn, 'pt-BR', { sensitivity:'base' });
+    if(an) return -1;
+    if(bn) return 1;
+    return String(a.tel || '').localeCompare(String(b.tel || ''));
   });
   if(!list.length){
     const empty=document.createElement('div');
@@ -714,6 +721,7 @@ function renderOrders(list){
     const statusClass = status.toLowerCase();
     const completeLabel = status === 'CONCLUIDO' ? 'Concluído' : 'Concluir';
     const completeDisabled = status === 'CONCLUIDO' ? 'disabled' : '';
+    const deleteDisabled = order.id ? '' : 'disabled';
     card.innerHTML=`
       <div class="row">
         <strong>${comandaLabel(order)}</strong>
@@ -746,6 +754,7 @@ function renderOrders(list){
       <div class="actions">
         <button class="btn" data-print="${order.id}">${printLabel}</button>
         <button class="btn sec" data-complete="${order.id}" ${completeDisabled}>${completeLabel}</button>
+        <button class="btn sec" data-delete="${order.id}" ${deleteDisabled}>Apagar</button>
       </div>
     `;
     ordersEl.appendChild(card);
@@ -907,7 +916,26 @@ async function fetchOrders(){
 }
 
 document.getElementById('btn-refresh').onclick=fetchOrders;
-ordersEl.addEventListener('click',ev=>{
+ordersEl.addEventListener('click',async ev=>{
+  const deleteBtn=ev.target.closest('[data-delete]');
+  if(deleteBtn){
+    const id=deleteBtn.dataset.delete;
+    if(!id) return;
+    if(!confirm('Apagar este pedido? Essa ação remove do sistema.')) return;
+    const synced = await clearOrdersRemote([id]);
+    if(synced){
+      hiddenOrderIds.delete(id);
+      saveHiddenOrders([...hiddenOrderIds]);
+      await fetchOrders();
+      alert('Pedido apagado.');
+      return;
+    }
+    hiddenOrderIds.add(id);
+    saveHiddenOrders([...hiddenOrderIds]);
+    renderOrders(CURRENT_ORDERS);
+    alert('Não foi possível apagar no painel remoto. Pedido ocultado apenas neste dispositivo.');
+    return;
+  }
   const completeBtn=ev.target.closest('[data-complete]');
   if(completeBtn){
     const id=completeBtn.dataset.complete;
