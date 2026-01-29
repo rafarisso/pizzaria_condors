@@ -540,6 +540,7 @@ const PIZZA_SECTIONS = [
     { id:'pz_americano', nome:'Americano', preco:65.00 },
     { id:'pz_brasileira', nome:'Brasileira', preco:67.00 },
     { id:'pz_bacon', nome:'Bacon', preco:65.00 },
+    { id:'pz_baiana', nome:'Baiana', preco:55.00 },
     { id:'pz_bauru', nome:'Bauru', preco:65.00 },
     { id:'pz_brocolis', nome:'Brócolis', preco:65.00 },
     { id:'pz_caipira', nome:'Caipira', preco:60.00 },
@@ -562,6 +563,7 @@ const PIZZA_SECTIONS = [
     { id:'pz_francesa', nome:'Francesa', preco:65.00 },
     { id:'pz_condor', nome:'Condor', preco:65.00 },
     { id:'pz_giarolli', nome:'Giarolli', preco:65.00 },
+    { id:'pz_5_queijos_cat', nome:'5 Queijos (Catupiry Original)', preco:80.00 },
     { id:'pz_jardineira', nome:'Jardineira', preco:65.00 },
     { id:'pz_hot_dog', nome:'Hot Dog', preco:58.00 },
     { id:'pz_light', nome:'Light', preco:70.00 },
@@ -636,6 +638,7 @@ const PIZZA_DESCS = {
   pz_americano: 'presunto, mussarela, bacon e ovos.',
   pz_brasileira: 'atum, cebola, bacon, ervilha e mussarela.',
   pz_bacon: 'bacon, oregano e mussarela.',
+  pz_baiana: 'calabresa, ovo, cebola e pimenta calabresa.',
   pz_bauru: 'presunto, mussarela e rodelas de tomate.',
   pz_brocolis: 'brocolis, bacon e mussarela.',
   pz_caipira: 'frango desfiado, milho verde e catupiry.',
@@ -658,6 +661,7 @@ const PIZZA_DESCS = {
   pz_francesa: 'presunto, champignon, ovos e catupiry ou mussarela.',
   pz_condor: 'presunto, ovos, bacon, palmito e parmesao.',
   pz_giarolli: 'palmito, escarola, bacon, mussarela e manjericao.',
+  pz_5_queijos_cat: 'mussarela, parmesao, provolone, gorgonzola e catupiry original.',
   pz_jardineira: 'frango desfiado, milho, ovos, palmito e mussarela.',
   pz_hot_dog: 'salsicha, mussarela e batata palha.',
   pz_light: 'peito de peru, mussarela e palmito.',
@@ -1250,7 +1254,8 @@ cepInput.addEventListener('blur',e=>fillAddressFromCep(e.target.value));
 const BASE_CEP = '04864002';
 const BASE_CEP_NUM = parseInt(BASE_CEP, 10);
 const EXACT_CEP_RATES = {
-  '04860080': 5.00
+  '04860080': 5.00,
+  '04860120': 4.00
 };
 const CEP_DELTA_RATES = [
   {max:200, rate:3.00},
