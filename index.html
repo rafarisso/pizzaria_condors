@@ -1068,11 +1068,13 @@ if(meioToggle){
 }
 if(meioSelect) meioSelect.addEventListener('change',updateParcial);
 document.getElementById('btn-add-custom').onclick=()=>{
-  let v=CURRENT.preco; let det=[];
+  let v=CURRENT.preco; let det=[]; let itemName=CURRENT.nome;
   const meioPizza=getMeioPizza();
   if(meioToggle && meioToggle.checked){
     if(!meioPizza){ alert('Selecione o segundo sabor.'); return; }
-    det.push(`Meio a meio: ${CURRENT.nome} + ${meioPizza.nome}`);
+    itemName='PIZZA MEIO A MEIO';
+    det.push(`1/2 ${CURRENT.nome}`);
+    det.push(`1/2 ${meioPizza.nome}`);
     v=Math.max(v, meioPizza.preco);
   }
   if(CURRENT.customIngredients){
@@ -1087,7 +1089,7 @@ document.getElementById('btn-add-custom').onclick=()=>{
     if(b.dataset.noDetail !== 'true') det.push(b.value);
   });
   v=Math.round(v*100)/100;
-  addToCart({nome:CURRENT.nome,preco:v,det:det.join(' · ')}); modal.setAttribute('aria-hidden','true');
+  addToCart({nome:itemName,preco:v,det:det.join(' · ')}); modal.setAttribute('aria-hidden','true');
 };
 
 /* ========= pizza 2 sabores ========= */
@@ -1179,9 +1181,10 @@ if(halfAdd) halfAdd.onclick=()=>{
   const finalize=(ingredients)=>{
     if(ingredients === null) return;
     let det=[];
-    det.push(`Meio a meio: ${p1.nome} + ${p2.nome}`);
-    if(ingredients.p1) det.push(`Ingredientes ${p1.nome}: ${ingredients.p1}`);
-    if(ingredients.p2) det.push(`Ingredientes ${p2.nome}: ${ingredients.p2}`);
+    det.push(`1/2 ${p1.nome}`);
+    det.push(`1/2 ${p2.nome}`);
+    if(ingredients.p1) det.push(`Ingredientes 1/2 ${p1.nome}: ${ingredients.p1}`);
+    if(ingredients.p2) det.push(`Ingredientes 1/2 ${p2.nome}: ${ingredients.p2}`);
     const sizeInput = halfModal.querySelector('input[name="tamanho-half"]:checked');
     const sizeMultiplier = sizeInput ? parseFloat(sizeInput.dataset.multiplier || '1') : 1;
     if(sizeInput) det.push('Tamanho: '+sizeInput.value);
@@ -1191,7 +1194,7 @@ if(halfAdd) halfAdd.onclick=()=>{
       if(b.dataset.noDetail !== 'true') det.push(b.value);
     });
     v=Math.round(v*100)/100;
-    addToCart({nome:'Pizza 2 Sabores',preco:v,det:det.join(' · ')});
+    addToCart({nome:'PIZZA MEIO A MEIO',preco:v,det:det.join(' · ')});
     halfModal.setAttribute('aria-hidden','true');
   };
   collectHalfIngredients(p1, p2, finalize);
@@ -1246,6 +1249,9 @@ cepInput.addEventListener('blur',e=>fillAddressFromCep(e.target.value));
 /* Calcular entrega (CEP por faixa numerica) */
 const BASE_CEP = '04864002';
 const BASE_CEP_NUM = parseInt(BASE_CEP, 10);
+const EXACT_CEP_RATES = {
+  '04860080': 5.00
+};
 const CEP_DELTA_RATES = [
   {max:200, rate:3.00},
   {max:800, rate:6.00},
@@ -1259,6 +1265,13 @@ const SPECIAL_CEP_ENDINGS = new Set(['010','020','030','040','050','060','070','
 const FIXED_PREFIX_RATES = [
   { prefix: '04870', rate: 15.00 }
 ];
+function getExactCepRate(cep){
+  if(!cep || cep.length !== 8) return null;
+  if(Object.prototype.hasOwnProperty.call(EXACT_CEP_RATES, cep)){
+    return EXACT_CEP_RATES[cep];
+  }
+  return null;
+}
 function isSpecialCep(cep){
   if(!cep || cep.length !== 8) return false;
   if(!cep.startsWith(SPECIAL_CEP_PREFIX)) return false;
@@ -1294,6 +1307,13 @@ function calcularTaxaEntrega(value, opts = {}){
   if(Number.isNaN(cepNum)){
     if(!opts.silent){ alert('Preencha o CEP para calcular a entrega.'); }
     TAXA=0;
+    txPrev.textContent=BRL(TAXA);
+    renderCart();
+    return;
+  }
+  const exactRate = getExactCepRate(cep);
+  if(exactRate !== null){
+    TAXA=exactRate;
     txPrev.textContent=BRL(TAXA);
     renderCart();
     return;
