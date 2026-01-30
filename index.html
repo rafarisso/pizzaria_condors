@@ -430,6 +430,7 @@ footer .footer-attendant a:hover{color:var(--text)}
 <script>
 /* ========= util ========= */
 const BRL = v => v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const TAXA_PENDING_LABEL = 'Taxa a ser calculada';
 const deg2rad = d => d*Math.PI/180;
 const haversine = (la1,lo1,la2,lo2)=>{
   const R=6371, dLat=deg2rad(la2-la1), dLon=deg2rad(lo2-lo1);
@@ -461,12 +462,37 @@ const normalizeCep = value => {
   if(digits.length === 7) return digits.padStart(8,'0');
   return digits;
 };
+const normalizeTaxa = value => {
+  const raw = String(value || '').trim();
+  if(!raw) return null;
+  const cleaned = raw.replace(/\./g,'').replace(',', '.').replace(/[^\d.-]/g,'');
+  const n = parseFloat(cleaned);
+  return Number.isFinite(n) ? n : null;
+};
+const normalizeBairroName = value => {
+  let s = String(value || '').toLowerCase();
+  s = s.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  s = s.replace(/[^\w\s]/g,' ');
+  s = s.replace(/\bsete\b/g,'7');
+  s = s.replace(/\bjd\b/g,'jardim')
+    .replace(/\bvl\b/g,'vila')
+    .replace(/\bpq\b/g,'parque')
+    .replace(/\bcid\b/g,'cidade')
+    .replace(/\bchac\b/g,'chacara')
+    .replace(/\brec\b/g,'recanto')
+    .replace(/\bsta\b/g,'santa')
+    .replace(/\bsto\b/g,'santo');
+  s = s.replace(/\b(de|da|do|dos|das)\b/g,' ');
+  s = s.replace(/\s+/g,' ').trim();
+  return s;
+};
 const normalizeClient = (client) => {
   if(!client || typeof client !== 'object') return null;
   return {
     ...client,
     tel: normalizePhone(client.tel),
-    cep: normalizeCep(client.cep)
+    cep: normalizeCep(client.cep),
+    taxa: normalizeTaxa(client.taxa)
   };
 };
 const loadClients = () => {
@@ -521,7 +547,14 @@ const applyClientToCheckout = client => {
   if(cidadeEl) cidadeEl.value=client.cidade || '';
   if(compEl) compEl.value=client.comp || '';
   if(refEl) refEl.value=client.ref || '';
-  if(cepEl) maybeAutoCalcularTaxa(cepEl.value);
+  const hasClientTaxa = typeof client.taxa === 'number';
+  if(hasClientTaxa){
+    TAXA=client.taxa;
+    TAXA_PENDING=false;
+    document.getElementById('tx-preview').textContent=formatTaxaLabel();
+    renderCart();
+  }
+  if(cepEl && !hasClientTaxa) maybeAutoCalcularTaxa(cepEl.value);
 };
 
 /* ========= catálogo ========= */
@@ -832,7 +865,9 @@ if(gf){ GALLERY.forEach((p,i)=>gf.appendChild(photoCard(p,i))); }
 
 
 /* ========= carrinho ========= */
-let CART=[]; let TAXA=0.00; let DESCONTO=0.00;
+let CART=[]; let TAXA=0.00; let DESCONTO=0.00; let TAXA_PENDING=false;
+const formatTaxaLabel = () => (TAXA_PENDING ? TAXA_PENDING_LABEL : BRL(TAXA));
+const effectiveTaxa = () => (TAXA_PENDING ? 0 : TAXA);
 const drawer=document.getElementById('drawer');
 const openDrawer=()=>{drawer.classList.add('open'); drawer.setAttribute('aria-hidden','false');};
 const closeDrawer=()=>{drawer.classList.remove('open'); drawer.setAttribute('aria-hidden','true');};
@@ -850,9 +885,9 @@ function renderCart(){
   });
   list.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{CART.splice(+b.dataset.rm,1);renderCart()});
   document.getElementById('sub').textContent=BRL(sub);
-  document.getElementById('taxa').textContent=BRL(TAXA);
+  document.getElementById('taxa').textContent=formatTaxaLabel();
   document.getElementById('desc').textContent=BRL(DESCONTO);
-  document.getElementById('total').textContent=BRL(Math.max(0, sub+TAXA-DESCONTO));
+  document.getElementById('total').textContent=BRL(Math.max(0, sub+effectiveTaxa()-DESCONTO));
   const countEl=document.getElementById('cart-count');
   if(countEl){
     countEl.textContent=CART.length;
@@ -873,7 +908,8 @@ function buildOrderPayload(){
   const pagamento=getPaymentMethod();
   const obs=document.getElementById('inp-obs').value.trim();
   const subtotal = CART.reduce((a,b)=>a+b.preco,0);
-  const total = subtotal + TAXA - DESCONTO;
+  const taxaValue = TAXA_PENDING ? 0 : TAXA;
+  const total = subtotal + taxaValue - DESCONTO;
   return {
     id: `PC-${Date.now()}`,
     createdAt: new Date().toISOString(),
@@ -882,7 +918,7 @@ function buildOrderPayload(){
     pagamento,
     obs,
     items: CART.map(it=>({ nome: it.nome, qtd: 1, preco: it.preco, det: it.det || '' })),
-    totals: { subtotal, taxa: TAXA, desconto: DESCONTO, total }
+    totals: { subtotal, taxa: TAXA_PENDING ? TAXA_PENDING_LABEL : TAXA, desconto: DESCONTO, total }
   };
 }
 
@@ -1257,6 +1293,52 @@ const EXACT_CEP_RATES = {
   '04860080': 5.00,
   '04860120': 4.00
 };
+const BAIRRO_RATES = [
+  { name:'Chacara Monte Sol', rate:5.00 },
+  { name:'Jardim Guanabara', rate:4.00 },
+  { name:'Vila Natal', rate:5.00 },
+  { name:'Chacara do Conde', rate:7.00 },
+  { name:'Parque Santa Cecilia', rate:7.00 },
+  { name:'Jardim Santa Fe', rate:7.00 },
+  { name:'Jardim Campinas', rate:6.00 },
+  { name:'Jardim Sao Judas Tadeu', rate:10.00 },
+  { name:'Jardim Novo Horizonte', rate:10.00 },
+  { name:'Jardim Mirna', rate:10.00 },
+  { name:'Balneario Sao Jose', rate:5.00 },
+  { name:'Recanto Ana Maria', rate:5.00 },
+  { name:'Jardim Maria Amalia', rate:5.00 },
+  { name:'Jardim Remolo', rate:5.00 },
+  { name:'Jardim Monte Alegre II', rate:10.00 },
+  { name:'Jardim Azono', rate:10.00 },
+  { name:'Chacara Cocaia', rate:12.00 },
+  { name:'Jardim 7 de Setembro', rate:12.00 },
+  { name:'Jardim Casa Grande', rate:5.00 },
+  { name:'Jardim Ipora', rate:10.00 },
+  { name:'Vila Marcelo', rate:15.00 },
+  { name:'Recanto Campo Belo I', rate:15.00 },
+  { name:'Alamos', rate:16.00 },
+  { name:'Jaceguava', rate:15.00 },
+  { name:'Jardim Sao Bernardo', rate:6.00 },
+  { name:'Jardim Icarai', rate:7.00 },
+  { name:'Jardim Alianca', rate:5.00 },
+  { name:'Vila Sao Jose', rate:6.00 },
+  { name:'Jardim Florida', rate:6.00 },
+  { name:'Jardim Angelica', rate:6.00 },
+  { name:'Jardim Beatriz', rate:9.00 },
+  { name:'Parque Brasil', rate:10.00 },
+  { name:'Jardim dos Imbuias', rate:8.00 },
+  { name:'Jardim Kioto', rate:9.00 },
+  { name:'Jardim Represa', rate:12.00 },
+  { name:'Jardim Bela Vista', rate:12.00 },
+  { name:'Jardim Ipanema', rate:13.00 },
+  { name:'Cidade Dutra', rate:16.00 },
+  { name:'Parque dos Anjos', rate:10.00 },
+  { name:'Jardim Maria Fernandes', rate:5.00 }
+];
+const BAIRRO_RATE_ENTRIES = BAIRRO_RATES.map(item=>({
+  key: normalizeBairroName(item.name),
+  rate: item.rate
+}));
 const CEP_DELTA_RATES = [
   {max:200, rate:3.00},
   {max:800, rate:6.00},
@@ -1274,6 +1356,23 @@ function getExactCepRate(cep){
   if(!cep || cep.length !== 8) return null;
   if(Object.prototype.hasOwnProperty.call(EXACT_CEP_RATES, cep)){
     return EXACT_CEP_RATES[cep];
+  }
+  return null;
+}
+function getBairroRate(rawBairro){
+  const key = normalizeBairroName(rawBairro);
+  if(!key) return null;
+  const hasEnoughInfo = (value) => {
+    const words = value.split(' ').filter(Boolean);
+    return words.length >= 2 || value.length >= 8;
+  };
+  for(const entry of BAIRRO_RATE_ENTRIES){
+    if(entry.key === key){
+      return entry.rate;
+    }
+    if(hasEnoughInfo(key) && hasEnoughInfo(entry.key) && (key.includes(entry.key) || entry.key.includes(key))){
+      return entry.rate;
+    }
   }
   return null;
 }
@@ -1300,10 +1399,19 @@ let lastTaxaCep='';
 function calcularTaxaEntrega(value, opts = {}){
   const cep=normalizeCep(value||'');
   const txPrev=document.getElementById('tx-preview');
+  const bairroRate = getBairroRate(document.getElementById('inp-bairro') ? document.getElementById('inp-bairro').value : '');
+  if(bairroRate !== null){
+    TAXA=bairroRate;
+    TAXA_PENDING=false;
+    txPrev.textContent=formatTaxaLabel();
+    renderCart();
+    return;
+  }
   if(cep.length!=8){
     if(!opts.silent){ alert('Preencha o CEP para calcular a entrega.'); }
     TAXA=0;
-    txPrev.textContent=BRL(TAXA);
+    TAXA_PENDING=false;
+    txPrev.textContent=formatTaxaLabel();
     renderCart();
     return;
   }
@@ -1312,19 +1420,22 @@ function calcularTaxaEntrega(value, opts = {}){
   if(Number.isNaN(cepNum)){
     if(!opts.silent){ alert('Preencha o CEP para calcular a entrega.'); }
     TAXA=0;
-    txPrev.textContent=BRL(TAXA);
+    TAXA_PENDING=false;
+    txPrev.textContent=formatTaxaLabel();
     renderCart();
     return;
   }
   const exactRate = getExactCepRate(cep);
   if(exactRate !== null){
     TAXA=exactRate;
+    TAXA_PENDING=false;
     txPrev.textContent=BRL(TAXA);
     renderCart();
     return;
   }
   if(isSpecialCep(cep)){
     TAXA=3.00;
+    TAXA_PENDING=false;
     txPrev.textContent=BRL(TAXA);
     renderCart();
     return;
@@ -1332,15 +1443,24 @@ function calcularTaxaEntrega(value, opts = {}){
   const fixedRate = getFixedPrefixRate(cep);
   if(fixedRate !== null){
     TAXA=fixedRate;
+    TAXA_PENDING=false;
     txPrev.textContent=BRL(TAXA);
     renderCart();
     return;
   }
   const diff = Math.abs(cepNum - BASE_CEP_NUM);
   const t = taxaPorCepDelta(diff);
-  if(t==null){ if(!opts.silent){ alert('CEP fora da area de entrega.'); } TAXA=0; }
-  else { TAXA=t; }
-  txPrev.textContent = BRL(TAXA);
+  if(t==null){
+    TAXA=0;
+    TAXA_PENDING=true;
+    if(!opts.silent){
+      alert('Taxa a ser calculada. A Pizzaria Condor entrará em contato informando o valor.');
+    }
+  }else{
+    TAXA=t;
+    TAXA_PENDING=false;
+  }
+  txPrev.textContent = formatTaxaLabel();
   renderCart();
 }
 function maybeAutoCalcularTaxa(value){
@@ -1352,6 +1472,11 @@ function maybeAutoCalcularTaxa(value){
 }
 document.getElementById('btn-taxa').onclick=()=>calcularTaxaEntrega(document.getElementById('inp-cep').value,{silent:false});
 cepInput.addEventListener('input',e=>maybeAutoCalcularTaxa(e.target.value));
+const bairroInput = document.getElementById('inp-bairro');
+if(bairroInput){
+  bairroInput.addEventListener('input',()=>maybeAutoCalcularTaxa(document.getElementById('inp-cep').value));
+  bairroInput.addEventListener('blur',()=>maybeAutoCalcularTaxa(document.getElementById('inp-cep').value));
+}
 
 const PIX_KEY = '11963770140';
 const PIX_NAME = 'Eva Luzia';
@@ -1459,7 +1584,7 @@ async function submitOrder({sendWhatsApp}){
     alert('Preencha os campos obrigatórios (nome, CEP, endereço).');
     return;
   }
-  if(TAXA===0){
+  if(!TAXA_PENDING && TAXA===0){
     if(!confirm('A taxa esta R$ 0,00. Deseja enviar assim mesmo? Verifique o CEP para estimar.')) return;
   }
   if(isSubmitting){
@@ -1486,9 +1611,9 @@ async function submitOrder({sendWhatsApp}){
     CART.forEach((it,i)=>linhas.push(`${i+1}. ${it.nome} - ${BRL(it.preco)}${it.det?` | ${it.det}`:''}`));
     linhas.push('');
     linhas.push(`\u{1F9FE} Subtotal: ${document.getElementById('sub').textContent}`);
-    linhas.push(`\u{1F69A} Taxa: ${BRL(TAXA)}`);
+    linhas.push(`\u{1F69A} Taxa: ${formatTaxaLabel()}`);
     linhas.push(`\u{1F3F7} Desconto: ${document.getElementById('desc').textContent}`);
-    const total = CART.reduce((a,b)=>a+b.preco,0)+TAXA-DESCONTO;
+    const total = CART.reduce((a,b)=>a+b.preco,0)+effectiveTaxa()-DESCONTO;
     linhas.push(`\u{1F4B5} *Total: ${BRL(total)}*`);
     if(data.pagamento){
       linhas.push(`Pagamento: ${data.pagamento}`);
@@ -1511,9 +1636,9 @@ async function submitOrder({sendWhatsApp}){
     alert('Pedido registrado no painel de impressão.');
   }
 
-  CART=[]; TAXA=0.00; DESCONTO=0.00;
+  CART=[]; TAXA=0.00; DESCONTO=0.00; TAXA_PENDING=false;
   renderCart();
-  document.getElementById('tx-preview').textContent=BRL(TAXA);
+  document.getElementById('tx-preview').textContent=formatTaxaLabel();
   const obsInput=document.getElementById('inp-obs');
   if(obsInput) obsInput.value='';
   const payDefault=document.querySelector('input[name="pay-method"][value="Dinheiro"]');

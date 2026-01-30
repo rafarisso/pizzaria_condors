@@ -147,6 +147,7 @@ h1{font-family:"Fraunces",serif;font-size:26px;margin:0}
         <input id="cli-cidade" class="text span-2" placeholder="Cidade*">
         <input id="cli-comp" class="text" placeholder="Complemento">
         <input id="cli-ref" class="text" placeholder="Referência">
+        <input id="cli-taxa" class="text" placeholder="Taxa de entrega (opcional)" inputmode="decimal">
       </div>
       <div class="actions" style="margin-top:10px">
         <button id="btn-client-save" class="btn" type="button">Salvar cliente</button>
@@ -176,6 +177,11 @@ const STATUS_ENDPOINT = '/.netlify/functions/sheets-update-status';
 const LOGO_BW_PATH = 'images/logo-bw.png';
 const LOGO_COLOR_PATH = 'images/logo.png';
 const BRL = v => Number(v || 0).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const TAXA_PENDING_LABEL = 'Taxa a ser calculada';
+const formatTaxaValue = (value) => {
+  if(typeof value === 'number' && Number.isFinite(value)) return BRL(value);
+  return value ? String(value) : TAXA_PENDING_LABEL;
+};
 const COMANDA_PAD = 5;
 const PRINT_STYLE_ID = 'v2';
 const PRINT_STYLES = {
@@ -263,6 +269,30 @@ function normalizeCep(value){
   if(digits.length === 7) return digits.padStart(8,'0');
   return digits;
 }
+function normalizeTaxa(value){
+  const raw = String(value || '').trim();
+  if(!raw) return null;
+  const cleaned = raw.replace(/\./g,'').replace(',', '.').replace(/[^\d.-]/g,'');
+  const n = parseFloat(cleaned);
+  return Number.isFinite(n) ? n : null;
+}
+function normalizeBairroName(value){
+  let s = String(value || '').toLowerCase();
+  s = s.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  s = s.replace(/[^\w\s]/g,' ');
+  s = s.replace(/\bsete\b/g,'7');
+  s = s.replace(/\bjd\b/g,'jardim')
+    .replace(/\bvl\b/g,'vila')
+    .replace(/\bpq\b/g,'parque')
+    .replace(/\bcid\b/g,'cidade')
+    .replace(/\bchac\b/g,'chacara')
+    .replace(/\brec\b/g,'recanto')
+    .replace(/\bsta\b/g,'santa')
+    .replace(/\bsto\b/g,'santo');
+  s = s.replace(/\b(de|da|do|dos|das)\b/g,' ');
+  s = s.replace(/\s+/g,' ').trim();
+  return s;
+}
 
 function formatCep(value){
   const digits = normalizeCep(value);
@@ -304,7 +334,8 @@ function normalizeClient(client){
   return {
     ...client,
     tel: normalizePhone(client.tel),
-    cep: normalizeCep(client.cep)
+    cep: normalizeCep(client.cep),
+    taxa: normalizeTaxa(client.taxa)
   };
 }
 
@@ -665,10 +696,19 @@ const clientBairroEl=document.getElementById('cli-bairro');
 const clientCidadeEl=document.getElementById('cli-cidade');
 const clientCompEl=document.getElementById('cli-comp');
 const clientRefEl=document.getElementById('cli-ref');
+const clientTaxaEl=document.getElementById('cli-taxa');
 const clientSaveBtn=document.getElementById('btn-client-save');
 const clientClearBtn=document.getElementById('btn-client-clear');
 let editingClientTel='';
 let lastClientCepLookup='';
+
+function parseTaxaInput(value){
+  const raw = String(value || '').trim();
+  if(!raw) return null;
+  const cleaned = raw.replace(/\./g,'').replace(',', '.').replace(/[^\d.-]/g,'');
+  const n = parseFloat(cleaned);
+  return Number.isFinite(n) ? n : null;
+}
 
 const applyClientCepData = (j) => {
   if(!j || j.erro) return false;
@@ -720,7 +760,8 @@ function getClientFormData(){
     bairro: (clientBairroEl ? clientBairroEl.value : '').trim(),
     cidade: (clientCidadeEl ? clientCidadeEl.value : '').trim(),
     comp: (clientCompEl ? clientCompEl.value : '').trim(),
-    ref: (clientRefEl ? clientRefEl.value : '').trim()
+    ref: (clientRefEl ? clientRefEl.value : '').trim(),
+    taxa: parseTaxaInput(clientTaxaEl ? clientTaxaEl.value : '')
   };
 }
 
@@ -735,6 +776,7 @@ function fillClientForm(client){
   if(clientCidadeEl) clientCidadeEl.value = client.cidade || '';
   if(clientCompEl) clientCompEl.value = client.comp || '';
   if(clientRefEl) clientRefEl.value = client.ref || '';
+  if(clientTaxaEl) clientTaxaEl.value = (client.taxa !== null && client.taxa !== undefined) ? String(client.taxa).replace('.', ',') : '';
   editingClientTel = client.tel || '';
 }
 
@@ -748,6 +790,7 @@ function clearClientForm(){
   if(clientCidadeEl) clientCidadeEl.value='';
   if(clientCompEl) clientCompEl.value='';
   if(clientRefEl) clientRefEl.value='';
+  if(clientTaxaEl) clientTaxaEl.value='';
   editingClientTel='';
 }
 
@@ -756,14 +799,16 @@ function renderClientList(){
   clientListEl.innerHTML='';
   const rawTerm = (clientSearchEl ? clientSearchEl.value : '');
   const term = rawTerm.trim().toLowerCase();
+  const termBairro = normalizeBairroName(rawTerm);
   const termDigits = normalizePhone(rawTerm);
   const phoneSearch = isPhoneSearch(rawTerm);
   const list = CLIENTS.filter(c=>{
     if(!term) return true;
     const name = (c.nome || '').toLowerCase();
     const tel = normalizePhone(c.tel);
+    const bairro = normalizeBairroName(c.bairro || '');
     if(phoneSearch) return tel.includes(termDigits);
-    return name.includes(term) || tel.includes(termDigits);
+    return name.includes(term) || tel.includes(termDigits) || (termBairro && (bairro.includes(termBairro) || termBairro.includes(bairro)));
   }).slice().sort((a,b)=>{
     const an=(a.nome || '').trim();
     const bn=(b.nome || '').trim();
@@ -807,7 +852,12 @@ function renderClientList(){
     btnEdit.className='btn sec';
     btnEdit.type='button';
     btnEdit.textContent='Editar';
-    btnEdit.onclick=()=>fillClientForm(client);
+    btnEdit.onclick=()=>{
+      fillClientForm(client);
+      const section = document.getElementById('clientes');
+      if(section) section.scrollIntoView({behavior:'smooth', block:'start'});
+      if(clientNomeEl) clientNomeEl.focus();
+    };
 
     const btnAttend=document.createElement('a');
     btnAttend.className='btn sec';
@@ -901,7 +951,7 @@ function renderOrders(list){
         <span>Subtotal</span><strong>${BRL(totals.subtotal)}</strong>
       </div>
       <div class="row">
-        <span>Taxa</span><strong>${BRL(totals.taxa)}</strong>
+        <span>Taxa</span><strong>${formatTaxaValue(totals.taxa)}</strong>
       </div>
       <div class="row">
         <span>Desconto</span><strong>${BRL(totals.desconto)}</strong>
@@ -1027,7 +1077,7 @@ function printOrder(order){
   ${obs ? `<div class="section-title">OBSERVACAO</div><div class="item-det">${obsHtml}</div><div class="sep"></div>` : ''}
   <div class="totals">
     <div class="row"><span>Sub-total</span><span>${BRL(totals.subtotal)}</span></div>
-    <div class="row"><span>Taxa de Entrega</span><span>${BRL(totals.taxa)}</span></div>
+    <div class="row"><span>Taxa de Entrega</span><span>${formatTaxaValue(totals.taxa)}</span></div>
     ${payment ? `<div class="row"><span>Pagamento</span><span>${payment}</span></div>` : ''}
   </div>
   <div class="sep"></div>
