@@ -140,7 +140,6 @@ h1{font-family:"Fraunces",serif;font-size:26px;margin:0}
       <div class="formGrid" style="margin-top:6px">
         <input id="cli-nome" class="text" placeholder="Nome completo*">
         <input id="cli-tel" class="text" placeholder="Telefone*">
-        <input id="cli-cep" class="text" placeholder="CEP*">
         <input id="cli-rua" class="text span-2" placeholder="Rua / Avenida*">
         <input id="cli-num" class="text" placeholder="Número*">
         <input id="cli-bairro" class="text" placeholder="Bairro*">
@@ -689,7 +688,6 @@ const clientListEl=document.getElementById('client-list');
 const clientSearchEl=document.getElementById('client-search');
 const clientNomeEl=document.getElementById('cli-nome');
 const clientTelEl=document.getElementById('cli-tel');
-const clientCepEl=document.getElementById('cli-cep');
 const clientRuaEl=document.getElementById('cli-rua');
 const clientNumEl=document.getElementById('cli-num');
 const clientBairroEl=document.getElementById('cli-bairro');
@@ -700,7 +698,6 @@ const clientTaxaEl=document.getElementById('cli-taxa');
 const clientSaveBtn=document.getElementById('btn-client-save');
 const clientClearBtn=document.getElementById('btn-client-clear');
 let editingClientTel='';
-let lastClientCepLookup='';
 
 function parseTaxaInput(value){
   const raw = String(value || '').trim();
@@ -710,51 +707,11 @@ function parseTaxaInput(value){
   return Number.isFinite(n) ? n : null;
 }
 
-const applyClientCepData = (j) => {
-  if(!j || j.erro) return false;
-  if(clientRuaEl) clientRuaEl.value = j.logradouro || '';
-  if(clientBairroEl) clientBairroEl.value = j.bairro || '';
-  if(clientCidadeEl) clientCidadeEl.value = (j.localidade ? `${j.localidade} - ${j.uf}` : '');
-  return true;
-};
-
-const fetchClientViaCepJsonp = (cep) => new Promise((resolve, reject) => {
-  const cb = `viaCepClientCb_${Date.now()}`;
-  const cleanup = () => {
-    delete window[cb];
-    script.remove();
-  };
-  window[cb] = (data) => { resolve(data); cleanup(); };
-  const script = document.createElement('script');
-  script.src = `https://viacep.com.br/ws/${cep}/json/?callback=${cb}`;
-  script.onerror = () => { reject(new Error('jsonp')); cleanup(); };
-  document.body.appendChild(script);
-});
-
-async function fillClientAddressFromCep(value){
-  const cep = normalizeCep(value);
-  if(cep.length !== 8){
-    if(cep.length < 8) lastClientCepLookup='';
-    return;
-  }
-  if(cep === lastClientCepLookup) return;
-  lastClientCepLookup = cep;
-  try{
-    const r = await fetch(`https://viacep.com.br/ws/${cep}/json/`, {cache:'no-store'});
-    const j = await r.json();
-    if(applyClientCepData(j)) return;
-  }catch{}
-  try{
-    const j = await fetchClientViaCepJsonp(cep);
-    applyClientCepData(j);
-  }catch{}
-}
 
 function getClientFormData(){
   return {
     nome: clientNomeEl ? clientNomeEl.value.trim() : '',
     tel: normalizePhone(clientTelEl ? clientTelEl.value : ''),
-    cep: normalizeCep(clientCepEl ? clientCepEl.value : ''),
     rua: (clientRuaEl ? clientRuaEl.value : '').trim(),
     num: (clientNumEl ? clientNumEl.value : '').trim(),
     bairro: (clientBairroEl ? clientBairroEl.value : '').trim(),
@@ -769,7 +726,6 @@ function fillClientForm(client){
   if(!client) return;
   if(clientNomeEl) clientNomeEl.value = client.nome || '';
   if(clientTelEl) clientTelEl.value = client.tel || '';
-  if(clientCepEl) clientCepEl.value = normalizeCep(client.cep || '');
   if(clientRuaEl) clientRuaEl.value = client.rua || '';
   if(clientNumEl) clientNumEl.value = client.num || '';
   if(clientBairroEl) clientBairroEl.value = client.bairro || '';
@@ -783,7 +739,6 @@ function fillClientForm(client){
 function clearClientForm(){
   if(clientNomeEl) clientNomeEl.value='';
   if(clientTelEl) clientTelEl.value='';
-  if(clientCepEl) clientCepEl.value='';
   if(clientRuaEl) clientRuaEl.value='';
   if(clientNumEl) clientNumEl.value='';
   if(clientBairroEl) clientBairroEl.value='';
@@ -1239,10 +1194,6 @@ if(completedModal){
 if(clientSearchEl){
   clientSearchEl.addEventListener('input', renderClientList);
 }
-if(clientCepEl){
-  clientCepEl.addEventListener('input', e=>fillClientAddressFromCep(e.target.value));
-  clientCepEl.addEventListener('blur', e=>fillClientAddressFromCep(e.target.value));
-}
 if(clientTelEl){
   clientTelEl.addEventListener('blur', ()=>{
     const tel=normalizePhone(clientTelEl.value);
@@ -1254,7 +1205,7 @@ if(clientTelEl){
 if(clientSaveBtn){
   clientSaveBtn.onclick=async ()=>{
     const data=getClientFormData();
-    if(!data.nome || !data.tel || !data.cep || !data.rua || !data.num || !data.bairro || !data.cidade){
+    if(!data.nome || !data.tel || !data.rua || !data.num || !data.bairro || !data.cidade){
       alert('Preencha os campos obrigatórios do cliente.');
       return;
     }

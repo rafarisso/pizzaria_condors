@@ -383,7 +383,6 @@ footer .footer-attendant a:hover{color:var(--text)}
 
     <div class="row" style="margin-top:8px">
       <div class="formGrid multi-cols">
-        <input id="inp-cep" class="text" placeholder="CEP*" inputmode="numeric" maxlength="9" autocomplete="off">
         <input id="inp-rua" class="text span-2" placeholder="Rua / Avenida*">
         <input id="inp-num" class="text" placeholder="Número*">
         <input id="inp-bairro" class="text" placeholder="Bairro*">
@@ -486,6 +485,30 @@ const normalizeBairroName = value => {
   s = s.replace(/\s+/g,' ').trim();
   return s;
 };
+const normalizeAddressText = value => {
+  let s = String(value || '').toLowerCase();
+  s = s.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  s = s.replace(/[^\w\s]/g,' ');
+  s = s.replace(/\bav\b/g,'avenida')
+    .replace(/\br\b/g,'rua')
+    .replace(/\bjd\b/g,'jardim')
+    .replace(/\bvl\b/g,'vila')
+    .replace(/\bpq\b/g,'parque')
+    .replace(/\bcid\b/g,'cidade')
+    .replace(/\bsta\b/g,'santa')
+    .replace(/\bsto\b/g,'santo');
+  s = s.replace(/\b(de|da|do|dos|das)\b/g,' ');
+  s = s.replace(/\s+/g,' ').trim();
+  return s;
+};
+const buildAddressKey = (addr) => {
+  const rua = normalizeAddressText(addr.rua || '');
+  const num = String(addr.num || '').replace(/\D/g,'');
+  const bairro = normalizeBairroName(addr.bairro || '');
+  const cidade = normalizeAddressText(addr.cidade || '');
+  if(!rua || !num || !bairro || !cidade) return '';
+  return [rua,num,bairro,cidade].join('|');
+};
 const normalizeClient = (client) => {
   if(!client || typeof client !== 'object') return null;
   return {
@@ -510,6 +533,16 @@ const findClientByPhone = phone => {
   const list = loadClients();
   return list.find(c=>c.tel===tel) || null;
 };
+const findClientByAddress = (addr) => {
+  const key = buildAddressKey(addr);
+  if(!key) return null;
+  const list = loadClients();
+  for(const client of list){
+    const clientKey = buildAddressKey(client);
+    if(clientKey && clientKey === key) return client;
+  }
+  return null;
+};
 const syncClientsRemote = async () => {
   if(!CLIENTS_ENDPOINT) return;
   try{
@@ -527,11 +560,11 @@ const syncClientsRemote = async () => {
     // ignore
   }
 };
+syncClientsRemote();
 const applyClientToCheckout = client => {
   if(!client) return;
   const nomeEl=document.getElementById('inp-nome');
   const telEl=document.getElementById('inp-tel');
-  const cepEl=document.getElementById('inp-cep');
   const ruaEl=document.getElementById('inp-rua');
   const numEl=document.getElementById('inp-num');
   const bairroEl=document.getElementById('inp-bairro');
@@ -540,7 +573,6 @@ const applyClientToCheckout = client => {
   const refEl=document.getElementById('inp-ref');
   if(nomeEl) nomeEl.value=client.nome || '';
   if(telEl) telEl.value=client.tel || '';
-  if(cepEl) cepEl.value=normalizeCep(client.cep || '');
   if(ruaEl) ruaEl.value=client.rua || '';
   if(numEl) numEl.value=client.num || '';
   if(bairroEl) bairroEl.value=client.bairro || '';
@@ -554,7 +586,7 @@ const applyClientToCheckout = client => {
     document.getElementById('tx-preview').textContent=formatTaxaLabel();
     renderCart();
   }
-  if(cepEl && !hasClientTaxa) maybeAutoCalcularTaxa(cepEl.value);
+  if(bairroEl && !hasClientTaxa) maybeAutoCalcularTaxa(bairroEl.value);
 };
 
 /* ========= catálogo ========= */
@@ -898,7 +930,6 @@ function renderCart(){
 function buildOrderPayload(){
   const nome=document.getElementById('inp-nome').value.trim();
   const tel=document.getElementById('inp-tel').value.trim();
-  const cep=normalizeCep(document.getElementById('inp-cep').value.trim());
   const rua=document.getElementById('inp-rua').value.trim();
   const num=document.getElementById('inp-num').value.trim();
   const bairro=document.getElementById('inp-bairro').value.trim();
@@ -914,7 +945,7 @@ function buildOrderPayload(){
     id: `PC-${Date.now()}`,
     createdAt: new Date().toISOString(),
     customer: { nome, tel },
-    address: { cep, rua, num, bairro, cidade, comp, ref },
+    address: { cep: '', rua, num, bairro, cidade, comp, ref },
     pagamento,
     obs,
     items: CART.map(it=>({ nome: it.nome, qtd: 1, preco: it.preco, det: it.det || '' })),
@@ -1246,53 +1277,7 @@ drawerBtnCheckout.onclick=()=>{ if(!CART.length){alert('Seu carrinho está vazio
 modalCheckout.addEventListener('click',e=>{if(e.target===modalCheckout) modalCheckout.setAttribute('aria-hidden','true')});
 document.getElementById('btn-voltar').onclick=()=>modalCheckout.setAttribute('aria-hidden','true');
 
-/* ViaCEP auto-preencher */
-const cepInput = document.getElementById('inp-cep');
-let lastCepLookup='';
-const applyCepData = (j) => {
-  if(!j || j.erro) return false;
-  document.getElementById('inp-rua').value=j.logradouro || '';
-  document.getElementById('inp-bairro').value=j.bairro || '';
-  document.getElementById('inp-cidade').value=(j.localidade?`${j.localidade} - ${j.uf}`:'');
-  return true;
-};
-const fetchViaCepJsonp = (cep) => new Promise((resolve, reject) => {
-  const cb = `viaCepCb_${Date.now()}`;
-  const cleanup = () => {
-    delete window[cb];
-    script.remove();
-  };
-  window[cb] = (data) => { resolve(data); cleanup(); };
-  const script = document.createElement('script');
-  script.src = `https://viacep.com.br/ws/${cep}/json/?callback=${cb}`;
-  script.onerror = () => { reject(new Error('jsonp')); cleanup(); };
-  document.body.appendChild(script);
-});
-async function fillAddressFromCep(value){
-  const cep=normalizeCep(value);
-  if(cep.length!=8){ if(cep.length<8) lastCepLookup=''; return; }
-  if(cep==lastCepLookup) return;
-  lastCepLookup=cep;
-  try{
-    const r=await fetch(`https://viacep.com.br/ws/${cep}/json/`, {cache:'no-store'});
-    const j=await r.json();
-    if(applyCepData(j)) return;
-  }catch{}
-  try{
-    const j=await fetchViaCepJsonp(cep);
-    applyCepData(j);
-  }catch{}
-}
-cepInput.addEventListener('input',e=>fillAddressFromCep(e.target.value));
-cepInput.addEventListener('blur',e=>fillAddressFromCep(e.target.value));
-
-/* Calcular entrega (CEP por faixa numerica) */
-const BASE_CEP = '04864002';
-const BASE_CEP_NUM = parseInt(BASE_CEP, 10);
-const EXACT_CEP_RATES = {
-  '04860080': 5.00,
-  '04860120': 4.00
-};
+/* Calcular entrega (por bairro) */
 const BAIRRO_RATES = [
   { name:'Chacara Monte Sol', rate:5.00 },
   { name:'Jardim Guanabara', rate:4.00 },
@@ -1333,38 +1318,44 @@ const BAIRRO_RATES = [
   { name:'Jardim Ipanema', rate:13.00 },
   { name:'Cidade Dutra', rate:16.00 },
   { name:'Parque dos Anjos', rate:10.00 },
-  { name:'Jardim Maria Fernandes', rate:5.00 }
+  { name:'Jardim Maria Fernandes', rate:5.00 },
+  { name:'Jardim Sao Rafael', rate:3.00 },
+  { name:'Condominio Regatas Tiete', rate:5.00 },
+  { name:'Alvi Verde', rate:15.00 },
+  { name:'Condominio Palmeiras', rate:15.00 },
+  { name:'Messianica', rate:15.00 },
+  { name:'Jardim Laredo', rate:15.00 }
 ];
 const BAIRRO_RATE_ENTRIES = BAIRRO_RATES.map(item=>({
   key: normalizeBairroName(item.name),
   rate: item.rate
 }));
-const CEP_DELTA_RATES = [
-  {max:200, rate:3.00},
-  {max:800, rate:6.00},
-  {max:2000, rate:10.00},
-  {max:4000, rate:14.00},
-  {max:8000, rate:16.00},
-  {max:15000, rate:20.00}
-];
-const SPECIAL_CEP_PREFIX = '04860';
-const SPECIAL_CEP_ENDINGS = new Set(['010','020','030','040','050','060','070','080','090']);
-const FIXED_PREFIX_RATES = [
-  { prefix: '04870', rate: 15.00 }
-];
-function getExactCepRate(cep){
-  if(!cep || cep.length !== 8) return null;
-  if(Object.prototype.hasOwnProperty.call(EXACT_CEP_RATES, cep)){
-    return EXACT_CEP_RATES[cep];
-  }
-  return null;
-}
 function getBairroRate(rawBairro){
   const key = normalizeBairroName(rawBairro);
   if(!key) return null;
   const hasEnoughInfo = (value) => {
     const words = value.split(' ').filter(Boolean);
     return words.length >= 2 || value.length >= 8;
+  };
+  const editDistance = (a,b) => {
+    if(a === b) return 0;
+    const al=a.length, bl=b.length;
+    if(!al) return bl;
+    if(!bl) return al;
+    const dp = Array.from({length: al+1}, ()=>Array(bl+1).fill(0));
+    for(let i=0;i<=al;i++) dp[i][0]=i;
+    for(let j=0;j<=bl;j++) dp[0][j]=j;
+    for(let i=1;i<=al;i++){
+      for(let j=1;j<=bl;j++){
+        const cost = a[i-1]===b[j-1] ? 0 : 1;
+        dp[i][j] = Math.min(
+          dp[i-1][j] + 1,
+          dp[i][j-1] + 1,
+          dp[i-1][j-1] + cost
+        );
+      }
+    }
+    return dp[al][bl];
   };
   for(const entry of BAIRRO_RATE_ENTRIES){
     if(entry.key === key){
@@ -1373,33 +1364,32 @@ function getBairroRate(rawBairro){
     if(hasEnoughInfo(key) && hasEnoughInfo(entry.key) && (key.includes(entry.key) || entry.key.includes(key))){
       return entry.rate;
     }
+    if(hasEnoughInfo(key) && hasEnoughInfo(entry.key)){
+      const dist = editDistance(key, entry.key);
+      const limit = key.length <= 8 || entry.key.length <= 8 ? 1 : 2;
+      if(dist <= limit) return entry.rate;
+    }
   }
   return null;
 }
-function isSpecialCep(cep){
-  if(!cep || cep.length !== 8) return false;
-  if(!cep.startsWith(SPECIAL_CEP_PREFIX)) return false;
-  const end = cep.slice(-3);
-  return SPECIAL_CEP_ENDINGS.has(end);
-}
-function getFixedPrefixRate(cep){
-  if(!cep || cep.length !== 8) return null;
-  for(const item of FIXED_PREFIX_RATES){
-    if(cep.startsWith(item.prefix)) return item.rate;
-  }
-  return null;
-}
-function taxaPorCepDelta(diff){
-  for(const faixa of CEP_DELTA_RATES){
-    if(diff <= faixa.max) return faixa.rate;
-  }
-  return null; // fora da area
-}
-let lastTaxaCep='';
 function calcularTaxaEntrega(value, opts = {}){
-  const cep=normalizeCep(value||'');
+  const bairro = value || (document.getElementById('inp-bairro') ? document.getElementById('inp-bairro').value : '');
   const txPrev=document.getElementById('tx-preview');
-  const bairroRate = getBairroRate(document.getElementById('inp-bairro') ? document.getElementById('inp-bairro').value : '');
+  const clientByAddress = findClientByAddress({
+    rua: document.getElementById('inp-rua') ? document.getElementById('inp-rua').value : '',
+    num: document.getElementById('inp-num') ? document.getElementById('inp-num').value : '',
+    bairro,
+    cidade: document.getElementById('inp-cidade') ? document.getElementById('inp-cidade').value : '',
+    comp: document.getElementById('inp-comp') ? document.getElementById('inp-comp').value : ''
+  });
+  if(clientByAddress && typeof clientByAddress.taxa === 'number'){
+    TAXA=clientByAddress.taxa;
+    TAXA_PENDING=false;
+    txPrev.textContent=formatTaxaLabel();
+    renderCart();
+    return;
+  }
+  const bairroRate = getBairroRate(bairro);
   if(bairroRate !== null){
     TAXA=bairroRate;
     TAXA_PENDING=false;
@@ -1407,76 +1397,28 @@ function calcularTaxaEntrega(value, opts = {}){
     renderCart();
     return;
   }
-  if(cep.length!=8){
-    if(!opts.silent){ alert('Preencha o CEP para calcular a entrega.'); }
-    TAXA=0;
-    TAXA_PENDING=false;
-    txPrev.textContent=formatTaxaLabel();
-    renderCart();
-    return;
-  }
-  txPrev.textContent='calculando...';
-  const cepNum = parseInt(cep, 10);
-  if(Number.isNaN(cepNum)){
-    if(!opts.silent){ alert('Preencha o CEP para calcular a entrega.'); }
-    TAXA=0;
-    TAXA_PENDING=false;
-    txPrev.textContent=formatTaxaLabel();
-    renderCart();
-    return;
-  }
-  const exactRate = getExactCepRate(cep);
-  if(exactRate !== null){
-    TAXA=exactRate;
-    TAXA_PENDING=false;
-    txPrev.textContent=BRL(TAXA);
-    renderCart();
-    return;
-  }
-  if(isSpecialCep(cep)){
-    TAXA=3.00;
-    TAXA_PENDING=false;
-    txPrev.textContent=BRL(TAXA);
-    renderCart();
-    return;
-  }
-  const fixedRate = getFixedPrefixRate(cep);
-  if(fixedRate !== null){
-    TAXA=fixedRate;
-    TAXA_PENDING=false;
-    txPrev.textContent=BRL(TAXA);
-    renderCart();
-    return;
-  }
-  const diff = Math.abs(cepNum - BASE_CEP_NUM);
-  const t = taxaPorCepDelta(diff);
-  if(t==null){
-    TAXA=0;
-    TAXA_PENDING=true;
-    if(!opts.silent){
-      alert('Taxa a ser calculada. A Pizzaria Condor entrará em contato informando o valor.');
-    }
-  }else{
-    TAXA=t;
-    TAXA_PENDING=false;
+  TAXA=0;
+  TAXA_PENDING=true;
+  if(!opts.silent){
+    alert('Taxa a ser calculada. A Pizzaria Condor entrará em contato informando o valor.');
   }
   txPrev.textContent = formatTaxaLabel();
   renderCart();
 }
 function maybeAutoCalcularTaxa(value){
-  const cep=normalizeCep(value||'');
-  if(cep.length!=8){ lastTaxaCep=''; calcularTaxaEntrega(value,{silent:true}); return; }
-  if(cep===lastTaxaCep) return;
-  lastTaxaCep=cep;
-  calcularTaxaEntrega(cep,{silent:true});
+  calcularTaxaEntrega(value,{silent:true});
 }
-document.getElementById('btn-taxa').onclick=()=>calcularTaxaEntrega(document.getElementById('inp-cep').value,{silent:false});
-cepInput.addEventListener('input',e=>maybeAutoCalcularTaxa(e.target.value));
+document.getElementById('btn-taxa').onclick=()=>calcularTaxaEntrega(document.getElementById('inp-bairro').value,{silent:false});
 const bairroInput = document.getElementById('inp-bairro');
 if(bairroInput){
-  bairroInput.addEventListener('input',()=>maybeAutoCalcularTaxa(document.getElementById('inp-cep').value));
-  bairroInput.addEventListener('blur',()=>maybeAutoCalcularTaxa(document.getElementById('inp-cep').value));
+  bairroInput.addEventListener('input',()=>maybeAutoCalcularTaxa(bairroInput.value));
+  bairroInput.addEventListener('blur',()=>maybeAutoCalcularTaxa(bairroInput.value));
 }
+['inp-rua','inp-num','inp-cidade','inp-comp'].forEach(id=>{
+  const el=document.getElementById(id);
+  if(!el) return;
+  el.addEventListener('blur',()=>maybeAutoCalcularTaxa(bairroInput ? bairroInput.value : ''));
+});
 
 const PIX_KEY = '11963770140';
 const PIX_NAME = 'Eva Luzia';
@@ -1566,7 +1508,6 @@ function getCheckoutData(){
   return {
     nome: document.getElementById('inp-nome').value.trim(),
     tel: document.getElementById('inp-tel').value.trim(),
-    cep: normalizeCep(document.getElementById('inp-cep').value.trim()),
     rua: document.getElementById('inp-rua').value.trim(),
     num: document.getElementById('inp-num').value.trim(),
     bairro: document.getElementById('inp-bairro').value.trim(),
@@ -1580,12 +1521,12 @@ function getCheckoutData(){
 
 async function submitOrder({sendWhatsApp}){
   const data=getCheckoutData();
-  if(!data.nome || !data.cep || !data.rua || !data.num || !data.bairro || !data.cidade){
-    alert('Preencha os campos obrigatórios (nome, CEP, endereço).');
+  if(!data.nome || !data.rua || !data.num || !data.bairro || !data.cidade){
+    alert('Preencha os campos obrigatórios (nome e endereço).');
     return;
   }
   if(!TAXA_PENDING && TAXA===0){
-    if(!confirm('A taxa esta R$ 0,00. Deseja enviar assim mesmo? Verifique o CEP para estimar.')) return;
+    if(!confirm('A taxa esta R$ 0,00. Deseja enviar assim mesmo? Verifique o endereço para estimar.')) return;
   }
   if(isSubmitting){
     alert('Pedido ja esta sendo enviado. Aguarde.');
@@ -1626,7 +1567,7 @@ async function submitOrder({sendWhatsApp}){
     if(data.obs) linhas.push(`Obs: ${data.obs}`);
     linhas.push('',`\u{1F4CD} *Entrega*`);
     linhas.push(`${data.rua}, ${data.num} ${data.comp?`- ${data.comp}`:''}`);
-    linhas.push(`${data.bairro} - ${data.cidade} - CEP ${data.cep}`);
+    linhas.push(`${data.bairro} - ${data.cidade}`);
     if(data.ref) linhas.push(`Referência: ${data.ref}`);
     if(data.tel) linhas.push(`Contato: ${data.tel}`);
     linhas.push('', openNow()? '\u{1F525} Pedido para *agora*' : '\u{23F0} Fora do horário. Desejo programar/confirmar horário.');
