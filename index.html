@@ -1535,16 +1535,26 @@ async function submitOrder({sendWhatsApp}){
   }
   isSubmitting=true;
   setCheckoutButtonsDisabled(true);
+  let waWindow = null;
+  if(sendWhatsApp){
+    waWindow = window.open('about:blank','_blank');
+  }
 
   const pedido = buildOrderPayload();
   try{
     await sendOrderToSheets(pedido);
     console.log('Pedido enviado ao painel:', pedido.id);
   }catch(err){
-    alert('Não foi possível enviar ao painel de impressão. Tente novamente.');
-    isSubmitting=false;
-    setCheckoutButtonsDisabled(false);
-    return;
+    const proceed = sendWhatsApp
+      ? confirm('Não foi possível enviar ao painel de impressão. Deseja enviar o pedido pelo WhatsApp mesmo assim?')
+      : false;
+    if(!proceed){
+      alert('Não foi possível enviar ao painel de impressão. Tente novamente.');
+      isSubmitting=false;
+      setCheckoutButtonsDisabled(false);
+      if(waWindow && !waWindow.closed) waWindow.close();
+      return;
+    }
   }
 
   if(sendWhatsApp){
@@ -1573,7 +1583,12 @@ async function submitOrder({sendWhatsApp}){
     if(data.tel) linhas.push(`Contato: ${data.tel}`);
     linhas.push('', openNow()? '\u{1F525} Pedido para *agora*' : '\u{23F0} Fora do horário. Desejo programar/confirmar horário.');
     const msg=encodeURIComponent(linhas.join('\n'));
-    window.open(`https://wa.me/${WHATSAPP_ORDER}?text=${msg}`,'_blank');
+    const waUrl=`https://wa.me/${WHATSAPP_ORDER}?text=${msg}`;
+    if(waWindow && !waWindow.closed){
+      waWindow.location.href=waUrl;
+    }else{
+      window.open(waUrl,'_blank');
+    }
   }else{
     alert('Pedido registrado no painel de impressão.');
   }
