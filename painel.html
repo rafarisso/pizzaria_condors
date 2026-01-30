@@ -1103,19 +1103,32 @@ document.getElementById('btn-refresh').onclick=fetchOrders;
 ordersEl.addEventListener('click',async ev=>{
   const deliveryBtn=ev.target.closest('[data-delivery]');
   if(deliveryBtn){
+    const waWindow = window.open('about:blank','_blank');
     const id=deliveryBtn.dataset.delivery;
-    if(!id) return;
+    if(!id){
+      if(waWindow && !waWindow.closed) waWindow.close();
+      return;
+    }
     const order=CURRENT_ORDERS.find(o=>o.id===id);
-    if(!order) return;
+    if(!order){
+      if(waWindow && !waWindow.closed) waWindow.close();
+      return;
+    }
     const telRaw = order.customer && order.customer.tel ? order.customer.tel : '';
     const tel = formatWhatsAppPhone(telRaw);
     if(!tel || tel.length < 10){
       alert('Telefone do cliente nao informado.');
+      if(waWindow && !waWindow.closed) waWindow.close();
       return;
     }
     const nome = order.customer && order.customer.nome ? order.customer.nome : 'cliente';
     const msg = `Ola ${nome}! Seu pedido saiu para entrega. Por favor, aguarde o motoqueiro para agilizar a entrega. Obrigado!`;
-    window.open(`https://wa.me/${tel}?text=${encodeURIComponent(msg)}`,'_blank');
+    const waUrl = `https://wa.me/${tel}?text=${encodeURIComponent(msg)}`;
+    if(waWindow && !waWindow.closed){
+      waWindow.location.href = waUrl;
+    }else{
+      window.open(waUrl,'_blank');
+    }
     return;
   }
   const deleteBtn=ev.target.closest('[data-delete]');
