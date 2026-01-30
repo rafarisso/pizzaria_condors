@@ -501,13 +501,15 @@ const normalizeAddressText = value => {
   s = s.replace(/\s+/g,' ').trim();
   return s;
 };
-const buildAddressKey = (addr) => {
+const buildAddressKey = (addr, opts = {}) => {
   const rua = normalizeAddressText(addr.rua || '');
   const num = String(addr.num || '').replace(/\D/g,'');
   const bairro = normalizeBairroName(addr.bairro || '');
   const cidade = normalizeAddressText(addr.cidade || '');
-  if(!rua || !num || !bairro || !cidade) return '';
-  return [rua,num,bairro,cidade].join('|');
+  if(!rua || !num || !bairro) return '';
+  const parts = [rua, num, bairro];
+  if(!opts.ignoreCity && cidade) parts.push(cidade);
+  return parts.join('|');
 };
 const normalizeClient = (client) => {
   if(!client || typeof client !== 'object') return null;
@@ -534,12 +536,15 @@ const findClientByPhone = phone => {
   return list.find(c=>c.tel===tel) || null;
 };
 const findClientByAddress = (addr) => {
-  const key = buildAddressKey(addr);
-  if(!key) return null;
+  const keyFull = buildAddressKey(addr);
+  const keyLoose = buildAddressKey(addr, {ignoreCity:true});
+  if(!keyFull && !keyLoose) return null;
   const list = loadClients();
   for(const client of list){
-    const clientKey = buildAddressKey(client);
-    if(clientKey && clientKey === key) return client;
+    const clientKeyFull = buildAddressKey(client);
+    if(clientKeyFull && keyFull && clientKeyFull === keyFull) return client;
+    const clientKeyLoose = buildAddressKey(client, {ignoreCity:true});
+    if(clientKeyLoose && keyLoose && clientKeyLoose === keyLoose) return client;
   }
   return null;
 };

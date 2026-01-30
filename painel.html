@@ -143,7 +143,7 @@ h1{font-family:"Fraunces",serif;font-size:26px;margin:0}
         <input id="cli-rua" class="text span-2" placeholder="Rua / Avenida*">
         <input id="cli-num" class="text" placeholder="Número*">
         <input id="cli-bairro" class="text" placeholder="Bairro*">
-        <input id="cli-cidade" class="text span-2" placeholder="Cidade*">
+        <input id="cli-cidade" class="text span-2" placeholder="Cidade">
         <input id="cli-comp" class="text" placeholder="Complemento">
         <input id="cli-ref" class="text" placeholder="Referência">
         <input id="cli-taxa" class="text" placeholder="Taxa de entrega (opcional)" inputmode="decimal">
@@ -1127,7 +1127,10 @@ ordersEl.addEventListener('click',async ev=>{
     if(waWindow && !waWindow.closed){
       waWindow.location.href = waUrl;
     }else{
-      window.open(waUrl,'_blank');
+      const fallback = window.open(waUrl,'_blank');
+      if(!fallback){
+        window.location.href = waUrl;
+      }
     }
     return;
   }
@@ -1218,7 +1221,7 @@ if(clientTelEl){
 if(clientSaveBtn){
   clientSaveBtn.onclick=async ()=>{
     const data=getClientFormData();
-    if(!data.nome || !data.tel || !data.rua || !data.num || !data.bairro || !data.cidade){
+    if(!data.nome || !data.tel || !data.rua || !data.num || !data.bairro){
       alert('Preencha os campos obrigatórios do cliente.');
       return;
     }
