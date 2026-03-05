@@ -383,6 +383,7 @@ footer .footer-attendant a:hover{color:var(--text)}
 
     <div class="row" style="margin-top:8px">
       <div class="formGrid multi-cols">
+        <input id="inp-cep" class="text" placeholder="CEP*" inputmode="numeric" maxlength="9" autocomplete="off">
         <input id="inp-rua" class="text span-2" placeholder="Rua / Avenida*">
         <input id="inp-num" class="text" placeholder="Número*">
         <input id="inp-bairro" class="text" placeholder="Bairro*">
@@ -570,6 +571,7 @@ const applyClientToCheckout = client => {
   if(!client) return;
   const nomeEl=document.getElementById('inp-nome');
   const telEl=document.getElementById('inp-tel');
+  const cepEl=document.getElementById('inp-cep');
   const ruaEl=document.getElementById('inp-rua');
   const numEl=document.getElementById('inp-num');
   const bairroEl=document.getElementById('inp-bairro');
@@ -578,6 +580,7 @@ const applyClientToCheckout = client => {
   const refEl=document.getElementById('inp-ref');
   if(nomeEl) nomeEl.value=client.nome || '';
   if(telEl) telEl.value=client.tel || '';
+  if(cepEl) cepEl.value=normalizeCep(client.cep || '');
   if(ruaEl) ruaEl.value=client.rua || '';
   if(numEl) numEl.value=client.num || '';
   if(bairroEl) bairroEl.value=client.bairro || '';
@@ -935,6 +938,7 @@ function renderCart(){
 function buildOrderPayload(){
   const nome=document.getElementById('inp-nome').value.trim();
   const tel=document.getElementById('inp-tel').value.trim();
+  const cep=normalizeCep(document.getElementById('inp-cep').value.trim());
   const rua=document.getElementById('inp-rua').value.trim();
   const num=document.getElementById('inp-num').value.trim();
   const bairro=document.getElementById('inp-bairro').value.trim();
@@ -950,7 +954,7 @@ function buildOrderPayload(){
     id: `PC-${Date.now()}`,
     createdAt: new Date().toISOString(),
     customer: { nome, tel },
-    address: { cep: '', rua, num, bairro, cidade, comp, ref },
+    address: { cep, rua, num, bairro, cidade, comp, ref },
     pagamento,
     obs,
     items: CART.map(it=>({ nome: it.nome, qtd: 1, preco: it.preco, det: it.det || '' })),
@@ -1378,6 +1382,68 @@ function getBairroRate(rawBairro){
   }
   return null;
 }
+const cepInput = document.getElementById('inp-cep');
+let lastCepLookup='';
+const formatCepFieldValue = (value) => {
+  const digits = normalizeCep(value).slice(0,8);
+  if(digits.length <= 5) return digits;
+  return `${digits.slice(0,5)}-${digits.slice(5)}`;
+};
+const applyCepData = (j) => {
+  if(!j || j.erro) return false;
+  const ruaEl=document.getElementById('inp-rua');
+  const bairroEl=document.getElementById('inp-bairro');
+  const cidadeEl=document.getElementById('inp-cidade');
+  if(ruaEl) ruaEl.value=j.logradouro || '';
+  if(bairroEl) bairroEl.value=j.bairro || '';
+  if(cidadeEl) cidadeEl.value=(j.localidade ? `${j.localidade} - ${j.uf}` : '');
+  if(bairroEl && bairroEl.value){
+    maybeAutoCalcularTaxa(bairroEl.value);
+  }
+  return true;
+};
+const fetchViaCepJsonp = (cep) => new Promise((resolve, reject) => {
+  const cb = `viaCepCb_${Date.now()}`;
+  const cleanup = () => {
+    delete window[cb];
+    script.remove();
+  };
+  window[cb] = (data) => { resolve(data); cleanup(); };
+  const script = document.createElement('script');
+  script.src = `https://viacep.com.br/ws/${cep}/json/?callback=${cb}`;
+  script.onerror = () => { reject(new Error('jsonp')); cleanup(); };
+  document.body.appendChild(script);
+});
+async function fillAddressFromCep(value){
+  const cep=normalizeCep(value);
+  if(cep.length!==8){
+    if(cep.length<8) lastCepLookup='';
+    return;
+  }
+  if(cep===lastCepLookup) return;
+  lastCepLookup=cep;
+  try{
+    const r=await fetch(`https://viacep.com.br/ws/${cep}/json/`, {cache:'no-store'});
+    const j=await r.json();
+    if(applyCepData(j)) return;
+  }catch{}
+  try{
+    const j=await fetchViaCepJsonp(cep);
+    applyCepData(j);
+  }catch{}
+}
+if(cepInput){
+  cepInput.addEventListener('input',e=>{
+    const formatted = formatCepFieldValue(e.target.value);
+    if(e.target.value !== formatted) e.target.value = formatted;
+    fillAddressFromCep(formatted);
+  });
+  cepInput.addEventListener('blur',e=>{
+    const formatted = formatCepFieldValue(e.target.value);
+    e.target.value = formatted;
+    fillAddressFromCep(formatted);
+  });
+}
 function calcularTaxaEntrega(value, opts = {}){
   const bairro = value || (document.getElementById('inp-bairro') ? document.getElementById('inp-bairro').value : '');
   const txPrev=document.getElementById('tx-preview');
@@ -1514,6 +1580,7 @@ function getCheckoutData(){
   return {
     nome: document.getElementById('inp-nome').value.trim(),
     tel: document.getElementById('inp-tel').value.trim(),
+    cep: normalizeCep(document.getElementById('inp-cep').value.trim()),
     rua: document.getElementById('inp-rua').value.trim(),
     num: document.getElementById('inp-num').value.trim(),
     bairro: document.getElementById('inp-bairro').value.trim(),
@@ -1527,8 +1594,8 @@ function getCheckoutData(){
 
 async function submitOrder({sendWhatsApp}){
   const data=getCheckoutData();
-  if(!data.nome || !data.rua || !data.num || !data.bairro || !data.cidade){
-    alert('Preencha os campos obrigatórios (nome e endereço).');
+  if(!data.nome || !data.cep || !data.rua || !data.num || !data.bairro || !data.cidade){
+    alert('Preencha os campos obrigatórios (nome, CEP e endereço).');
     return;
   }
   if(!TAXA_PENDING && TAXA===0){
@@ -1583,7 +1650,7 @@ async function submitOrder({sendWhatsApp}){
     if(data.obs) linhas.push(`Obs: ${data.obs}`);
     linhas.push('',`\u{1F4CD} *Entrega*`);
     linhas.push(`${data.rua}, ${data.num} ${data.comp?`- ${data.comp}`:''}`);
-    linhas.push(`${data.bairro} - ${data.cidade}`);
+    linhas.push(`${data.bairro} - ${data.cidade} - CEP ${data.cep}`);
     if(data.ref) linhas.push(`Referência: ${data.ref}`);
     if(data.tel) linhas.push(`Contato: ${data.tel}`);
     linhas.push('', openNow()? '\u{1F525} Pedido para *agora*' : '\u{23F0} Fora do horário. Desejo programar/confirmar horário.');
