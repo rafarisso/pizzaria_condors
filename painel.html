@@ -140,6 +140,7 @@ h1{font-family:"Fraunces",serif;font-size:26px;margin:0}
       <div class="formGrid" style="margin-top:6px">
         <input id="cli-nome" class="text" placeholder="Nome completo*">
         <input id="cli-tel" class="text" placeholder="Telefone*">
+        <input id="cli-cep" class="text" placeholder="CEP*" inputmode="numeric" maxlength="9" autocomplete="off">
         <input id="cli-rua" class="text span-2" placeholder="Rua / Avenida*">
         <input id="cli-num" class="text" placeholder="Número*">
         <input id="cli-bairro" class="text" placeholder="Bairro*">
@@ -688,6 +689,7 @@ const clientListEl=document.getElementById('client-list');
 const clientSearchEl=document.getElementById('client-search');
 const clientNomeEl=document.getElementById('cli-nome');
 const clientTelEl=document.getElementById('cli-tel');
+const clientCepEl=document.getElementById('cli-cep');
 const clientRuaEl=document.getElementById('cli-rua');
 const clientNumEl=document.getElementById('cli-num');
 const clientBairroEl=document.getElementById('cli-bairro');
@@ -712,6 +714,7 @@ function getClientFormData(){
   return {
     nome: clientNomeEl ? clientNomeEl.value.trim() : '',
     tel: normalizePhone(clientTelEl ? clientTelEl.value : ''),
+    cep: normalizeCep(clientCepEl ? clientCepEl.value : ''),
     rua: (clientRuaEl ? clientRuaEl.value : '').trim(),
     num: (clientNumEl ? clientNumEl.value : '').trim(),
     bairro: (clientBairroEl ? clientBairroEl.value : '').trim(),
@@ -726,6 +729,7 @@ function fillClientForm(client){
   if(!client) return;
   if(clientNomeEl) clientNomeEl.value = client.nome || '';
   if(clientTelEl) clientTelEl.value = client.tel || '';
+  if(clientCepEl) clientCepEl.value = normalizeCep(client.cep || '');
   if(clientRuaEl) clientRuaEl.value = client.rua || '';
   if(clientNumEl) clientNumEl.value = client.num || '';
   if(clientBairroEl) clientBairroEl.value = client.bairro || '';
@@ -739,6 +743,7 @@ function fillClientForm(client){
 function clearClientForm(){
   if(clientNomeEl) clientNomeEl.value='';
   if(clientTelEl) clientTelEl.value='';
+  if(clientCepEl) clientCepEl.value='';
   if(clientRuaEl) clientRuaEl.value='';
   if(clientNumEl) clientNumEl.value='';
   if(clientBairroEl) clientBairroEl.value='';
@@ -1218,10 +1223,20 @@ if(clientTelEl){
     if(existing) fillClientForm(existing);
   });
 }
+if(clientCepEl){
+  clientCepEl.addEventListener('input', e=>{
+    const digits = normalizeCep(e.target.value).slice(0,8);
+    e.target.value = digits.length > 5 ? `${digits.slice(0,5)}-${digits.slice(5)}` : digits;
+  });
+  clientCepEl.addEventListener('blur', e=>{
+    const digits = normalizeCep(e.target.value).slice(0,8);
+    e.target.value = digits.length > 5 ? `${digits.slice(0,5)}-${digits.slice(5)}` : digits;
+  });
+}
 if(clientSaveBtn){
   clientSaveBtn.onclick=async ()=>{
     const data=getClientFormData();
-    if(!data.nome || !data.tel || !data.rua || !data.num || !data.bairro){
+    if(!data.nome || !data.tel || !data.cep || !data.rua || !data.num || !data.bairro){
       alert('Preencha os campos obrigatórios do cliente.');
       return;
     }
